@@ -1,0 +1,127 @@
+/*
+ * Islamic School Management — admin & public styling.
+ * Green-and-gold Islamic palette. Mobile-first responsive. Dark mode via [data-ism-theme="dark"].
+ */
+
+:root {
+    --ism-green-50:  #ECFDF5;
+    --ism-green-500: #10B981;
+    --ism-green-700: #056656;
+    --ism-green-800: #044d40;
+    --ism-gold-400:  #D4AF37;
+    --ism-gold-500:  #BF9B30;
+    --ism-bg:        #F8FAF7;
+    --ism-surface:   #FFFFFF;
+    --ism-text:      #0F172A;
+    --ism-muted:     #64748B;
+    --ism-border:    #E2E8F0;
+    --ism-danger:    #DC2626;
+    --ism-warn:      #F59E0B;
+    --ism-radius:    10px;
+    --ism-shadow:    0 4px 14px rgba(5, 102, 86, 0.08);
+}
+[data-ism-theme="dark"] {
+    --ism-bg:      #0B1220;
+    --ism-surface: #111827;
+    --ism-text:    #F1F5F9;
+    --ism-muted:   #94A3B8;
+    --ism-border:  #1F2937;
+    --ism-shadow:  0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+#ism-root {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Amiri", "Noto Naskh Arabic", sans-serif;
+    color: var(--ism-text);
+    background: var(--ism-bg);
+}
+
+.ism-shell { max-width: 1200px; margin: 0 auto; padding: 16px; }
+.ism-header {
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 2px solid var(--ism-green-700); padding-bottom: 10px; margin-bottom: 18px;
+}
+.ism-header h1 { margin: 0; font-size: 22px; color: var(--ism-green-700); display: flex; align-items: center; gap: 8px; }
+.ism-crescent { color: var(--ism-gold-500); font-size: 24px; }
+.ism-toolbar { display: flex; gap: 8px; }
+
+.ism-btn {
+    background: var(--ism-surface); color: var(--ism-text);
+    border: 1px solid var(--ism-border); padding: 7px 14px;
+    border-radius: var(--ism-radius); cursor: pointer; font-size: 14px;
+    transition: background .15s, transform .05s;
+}
+.ism-btn:hover { background: var(--ism-green-50); }
+.ism-btn-primary { background: var(--ism-green-700); color: #fff; border-color: var(--ism-green-700); }
+.ism-btn-primary:hover { background: var(--ism-green-800); }
+.ism-btn:active { transform: translateY(1px); }
+
+.ism-kpis {
+    display: grid; gap: 14px; margin-bottom: 18px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+.ism-kpi {
+    background: var(--ism-surface); border: 1px solid var(--ism-border);
+    border-radius: var(--ism-radius); box-shadow: var(--ism-shadow);
+    padding: 16px; display: flex; flex-direction: column; gap: 6px;
+}
+.ism-kpi-label { font-size: 12px; color: var(--ism-muted); text-transform: uppercase; letter-spacing: .04em; }
+.ism-kpi-value { font-size: 28px; font-weight: 700; color: var(--ism-green-700); }
+
+.ism-grid {
+    display: grid; gap: 14px;
+    grid-template-columns: repeat(12, 1fr);
+}
+.ism-card {
+    background: var(--ism-surface); border: 1px solid var(--ism-border);
+    border-radius: var(--ism-radius); box-shadow: var(--ism-shadow);
+    padding: 16px; grid-column: span 6;
+}
+.ism-card-wide { grid-column: span 12; }
+.ism-card h2 { margin: 0 0 12px; font-size: 16px; color: var(--ism-green-700); }
+@media (max-width: 900px) { .ism-card { grid-column: span 12; } }
+
+.ism-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.ism-table th, .ism-table td { padding: 8px 10px; border-bottom: 1px solid var(--ism-border); text-align: left; }
+.ism-table th { color: var(--ism-muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.ism-table tbody tr:hover { background: var(--ism-green-50); }
+
+.ism-list { padding-left: 18px; margin: 0; }
+.ism-list li { padding: 4px 0; }
+
+.ism-form .ism-form-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; }
+.ism-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--ism-muted); flex: 1 1 220px; }
+.ism-form .ism-block { display: block; margin-bottom: 12px; }
+.ism-form input[type="text"], .ism-form input[type="number"], .ism-form input[type="email"], .ism-form input[type="url"],
+.ism-form input[type="date"], .ism-form select, .ism-form textarea {
+    padding: 7px 10px; border: 1px solid var(--ism-border); border-radius: 8px;
+    background: var(--ism-surface); color: var(--ism-text); font-size: 14px;
+}
+.ism-form-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; }
+.ism-tag { background: var(--ism-green-50); color: var(--ism-green-800); padding: 4px 10px; border-radius: 999px; font-size: 13px; }
+
+.ism-grades { border: 1px solid var(--ism-border); border-radius: var(--ism-radius); padding: 14px; }
+.ism-grades legend { padding: 0 6px; color: var(--ism-green-700); font-weight: 600; }
+.ism-grade-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; margin-bottom: 10px; }
+.ism-grade-label { font-size: 14px; color: var(--ism-text); }
+.ism-grade-buttons { display: flex; gap: 6px; }
+.ism-grade-btn {
+    width: 36px; height: 36px; border-radius: 8px;
+    border: 1px solid var(--ism-border); background: var(--ism-surface);
+    cursor: pointer; font-weight: 600; color: var(--ism-text);
+}
+.ism-grade-btn[aria-pressed="true"] { background: var(--ism-green-700); color: #fff; border-color: var(--ism-green-700); }
+.ism-grade-btn[data-val="0"][aria-pressed="true"] { background: var(--ism-muted); border-color: var(--ism-muted); }
+.ism-grade-btn[data-val="1"][aria-pressed="true"] { background: var(--ism-danger); border-color: var(--ism-danger); }
+.ism-grade-btn[data-val="2"][aria-pressed="true"] { background: #F97316; border-color: #F97316; }
+.ism-grade-btn[data-val="3"][aria-pressed="true"] { background: var(--ism-warn); border-color: var(--ism-warn); }
+.ism-grade-btn[data-val="5"][aria-pressed="true"] { background: var(--ism-gold-500); border-color: var(--ism-gold-500); }
+
+.ism-summary { padding: 12px; background: var(--ism-green-50); border-radius: var(--ism-radius); margin: 12px 0; }
+.ism-progress { background: var(--ism-border); border-radius: 999px; overflow: hidden; height: 8px; }
+.ism-progress > span { background: var(--ism-green-700); display: block; height: 100%; }
+
+.ism-arabic { font-family: "Amiri", "Noto Naskh Arabic", serif; font-size: 18px; direction: rtl; }
+
+/* Public-facing shortcode views */
+.ism-public-shell { max-width: 980px; margin: 24px auto; padding: 16px; background: var(--ism-bg); color: var(--ism-text); }
+.ism-login-card { max-width: 380px; margin: 60px auto; }
