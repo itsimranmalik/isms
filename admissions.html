@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Admissions — Madrasa</title>
+    <meta name="description" content="Apply for admission to our madrasa. Simple, transparent process for parents.">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='50' font-size='52'>☪</text></svg>">
+    <link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+    <div id="site-nav"></div>
+
+    <section class="section">
+        <div class="container">
+            <span class="chip gold">Admissions</span>
+            <h1 style="margin-top:12px">Apply for admission</h1>
+            <p class="lead">Open enrolment year-round. Most cohorts begin in September; mid-year intake is available on request.</p>
+        </div>
+    </section>
+
+    <section class="section-tight">
+        <div class="container">
+            <div class="grid grid-3">
+                <div class="card">
+                    <div class="icon">1</div>
+                    <h3>Apply online</h3>
+                    <p class="text-muted">Fill in the short form below. We'll come back within 2 working days.</p>
+                </div>
+                <div class="card">
+                    <div class="icon">2</div>
+                    <h3>Family chat</h3>
+                    <p class="text-muted">A short call so we can understand your child and answer your questions.</p>
+                </div>
+                <div class="card">
+                    <div class="icon">3</div>
+                    <h3>Welcome</h3>
+                    <p class="text-muted">Class assigned, login created, and your child meets their teacher.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container" style="max-width: 760px">
+            <h2>Application form</h2>
+            <p class="text-muted">All fields marked * are required. Submission stores a draft only — no payment yet.</p>
+            <form class="form" id="application-form" style="margin-top: 18px">
+                <div class="row">
+                    <label>Child first name *<input required name="first_name"></label>
+                    <label>Child last name *<input required name="last_name"></label>
+                </div>
+                <div class="row">
+                    <label>Date of birth *<input required type="date" name="dob"></label>
+                    <label>Gender<select name="gender"><option value="">—</option><option>Male</option><option>Female</option></select></label>
+                </div>
+                <div class="row">
+                    <label>Parent / guardian name *<input required name="guardian_name"></label>
+                    <label>Parent / guardian phone *<input required name="guardian_phone"></label>
+                </div>
+                <label>Parent / guardian email *<input required type="email" name="guardian_email"></label>
+                <label>Home address<textarea rows="2" name="address"></textarea></label>
+                <label>Any prior Quran study?<textarea rows="3" name="prior_study" placeholder="Surahs memorised, previous madrasa, teacher's name..."></textarea></label>
+                <label>Preferred start date<input type="date" name="start_date"></label>
+                <div id="application-alert"></div>
+                <button class="btn btn-primary btn-lg" type="submit">Submit application</button>
+            </form>
+        </div>
+    </section>
+
+    <div id="site-footer"></div>
+    <script src="assets/js/partials.js"></script>
+    <script src="assets/js/site.js"></script>
+    <script>
+        // Applications are stored locally for now; admin can review them once Supabase is wired
+        document.addEventListener('DOMContentLoaded', () => {
+            const form  = document.getElementById('application-form');
+            const alert = document.getElementById('application-alert');
+            form.addEventListener('submit', e => {
+                e.preventDefault();
+                const fd  = new FormData(form);
+                const obj = Object.fromEntries(fd.entries());
+                obj.submitted_at = new Date().toISOString();
+                const list = JSON.parse(localStorage.getItem('isms-applications') || '[]');
+                list.push(obj);
+                localStorage.setItem('isms-applications', JSON.stringify(list));
+                alert.innerHTML = '<div class="alert alert-success">Thank you. Your application is saved — we will contact you within 2 working days.</div>';
+                form.reset();
+            });
+        });
+    </script>
+</body>
+</html>

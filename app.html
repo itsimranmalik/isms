@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Portal — Madrasa</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='50' font-size='52'>☪</text></svg>">
+    <link rel="stylesheet" href="assets/css/site.css">
+    <link rel="stylesheet" href="assets/css/app.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" defer></script>
+</head>
+<body data-app="1">
+    <aside class="app-sidebar" id="app-sidebar">
+        <div class="app-brand">
+            <span class="crescent">☪</span>
+            <span id="brand-school">Madrasa</span>
+        </div>
+        <nav class="app-nav" id="app-nav"></nav>
+        <div class="app-user" id="app-user"></div>
+    </aside>
+
+    <main class="app-main">
+        <header class="app-topbar">
+            <button class="app-burger" id="app-burger" aria-label="Toggle menu">☰</button>
+            <h2 id="page-title" style="margin: 0; color: var(--green-700)">Dashboard</h2>
+            <div class="spacer"></div>
+            <button class="btn" id="theme-toggle">🌓</button>
+            <button class="btn btn-primary" id="signout-btn">Sign out</button>
+        </header>
+
+        <section id="page-root" class="app-page">
+            <div class="loader">Loading…</div>
+        </section>
+    </main>
+
+    <script src="assets/js/config.js"></script>
+    <script type="module" src="assets/js/app.js"></script>
+</body>
+</html>

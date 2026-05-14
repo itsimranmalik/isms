@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Contact — Madrasa</title>
+    <meta name="description" content="Get in touch with our madrasa. We respond within one working day.">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='50' font-size='52'>☪</text></svg>">
+    <link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+    <div id="site-nav"></div>
+
+    <section class="section">
+        <div class="container">
+            <span class="chip gold">Contact</span>
+            <h1 style="margin-top:12px">We'd love to hear from you</h1>
+            <p class="lead">Questions about admissions, classes, our methodology — or just want to visit?</p>
+        </div>
+    </section>
+
+    <section class="section-tight">
+        <div class="container">
+            <div class="grid" style="grid-template-columns: 1fr 1.2fr; gap: 32px">
+                <div>
+                    <div class="card">
+                        <h3>By phone</h3>
+                        <p class="text-muted" id="contact-phone">+44 0000 000000</p>
+                        <h3 style="margin-top: 18px">By email</h3>
+                        <p class="text-muted" id="contact-email">hello@madrasa.example</p>
+                        <h3 style="margin-top: 18px">Visit us</h3>
+                        <p class="text-muted" id="contact-address">123 Madrasa Street<br>Your City, AB1 2CD</p>
+                        <h3 style="margin-top: 18px">Office hours</h3>
+                        <p class="text-muted">Mon–Fri, 9:00–17:00<br>Closed Friday for Jumu'ah 12:00–14:00</p>
+                    </div>
+                </div>
+                <div>
+                    <form class="form" id="contact-form">
+                        <div class="row">
+                            <label>Your name *<input required name="name"></label>
+                            <label>Your email *<input required type="email" name="email"></label>
+                        </div>
+                        <label>Subject *<input required name="subject"></label>
+                        <label>Message *<textarea required rows="6" name="message"></textarea></label>
+                        <div id="contact-alert"></div>
+                        <button class="btn btn-primary btn-lg" type="submit">Send message</button>
+                    </form>
+                </div>
+            </div>
+            @media (max-width: 800px) { .grid[style*="grid-template-columns: 1fr 1.2fr"] { grid-template-columns: 1fr !important; } }
+        </div>
+    </section>
+
+    <div id="site-footer"></div>
+    <script src="assets/js/partials.js"></script>
+    <script src="assets/js/site.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form  = document.getElementById('contact-form');
+            const alert = document.getElementById('contact-alert');
+            form.addEventListener('submit', e => {
+                e.preventDefault();
+                const fd  = new FormData(form);
+                const obj = Object.fromEntries(fd.entries());
+                obj.submitted_at = new Date().toISOString();
+                const list = JSON.parse(localStorage.getItem('isms-messages') || '[]');
+                list.push(obj);
+                localStorage.setItem('isms-messages', JSON.stringify(list));
+                alert.innerHTML = '<div class="alert alert-success">Message saved. We aim to reply within one working day.</div>';
+                form.reset();
+            });
+        });
+    </script>
+</body>
+</html>

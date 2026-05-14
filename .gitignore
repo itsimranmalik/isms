@@ -1,0 +1,16 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Local
+*.log
+*.tmp
+.secrets-local.txt
+*.secrets.txt
+
+# Keep these:
+# - assets/js/config.js  (deliberately committed; the anon key is safe)

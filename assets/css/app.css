@@ -1,0 +1,74 @@
+/* Application shell — sidebar + main, mobile collapsible. */
+
+body[data-app="1"] {
+    margin: 0;
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    min-height: 100vh;
+    background: var(--bg);
+}
+
+.app-sidebar {
+    background: var(--green-900);
+    color: #E5E7EB;
+    padding: 20px;
+    position: sticky; top: 0; height: 100vh;
+    display: flex; flex-direction: column; gap: 18px;
+    overflow-y: auto;
+}
+.app-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; color: #fff; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,.1); }
+.app-brand .crescent { color: var(--gold-400); font-size: 22px; }
+.app-nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.app-nav a { color: #cbd5e1; padding: 10px 12px; border-radius: 8px; font-size: 14px; display: flex; gap: 10px; align-items: center; }
+.app-nav a:hover { background: rgba(255,255,255,.06); color: #fff; text-decoration: none; }
+.app-nav a.active { background: var(--green-700); color: #fff; }
+.app-nav .grp { font-size: 11px; color: rgba(255,255,255,.45); text-transform: uppercase; letter-spacing: .08em; padding: 14px 12px 4px; }
+.app-user { font-size: 13px; padding: 12px; border-top: 1px solid rgba(255,255,255,.1); color: #cbd5e1; }
+.app-user .who { color: #fff; font-weight: 600; }
+
+.app-main { display: flex; flex-direction: column; min-width: 0; }
+.app-topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 10; }
+.app-topbar .spacer { flex: 1; }
+.app-burger { display: none; background: none; border: 0; font-size: 22px; cursor: pointer; color: var(--text); }
+.app-page { padding: 24px; max-width: 1400px; width: 100%; }
+.loader { text-align: center; color: var(--muted); padding: 60px; }
+
+/* KPI grid */
+.kpis { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 20px; }
+.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; }
+.kpi .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.kpi .value { font-size: 28px; font-weight: 700; color: var(--green-700); }
+
+.grid-app { display: grid; gap: 16px; grid-template-columns: repeat(12, 1fr); }
+.grid-app .card.span-6  { grid-column: span 6; }
+.grid-app .card.span-12 { grid-column: span 12; }
+@media (max-width: 900px) { .grid-app .card.span-6 { grid-column: span 12; } }
+
+/* Grade buttons (0..5) */
+.grade-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; margin: 8px 0; }
+.grade-buttons { display: flex; gap: 6px; }
+.grade-btn {
+    width: 38px; height: 38px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface);
+    cursor: pointer; font-weight: 600; color: var(--text);
+}
+.grade-btn[aria-pressed="true"] { background: var(--green-700); color: #fff; border-color: var(--green-700); }
+.grade-btn[data-val="0"][aria-pressed="true"] { background: #9CA3AF; border-color: #9CA3AF; }
+.grade-btn[data-val="1"][aria-pressed="true"] { background: var(--danger); border-color: var(--danger); }
+.grade-btn[data-val="2"][aria-pressed="true"] { background: #F97316; border-color: #F97316; }
+.grade-btn[data-val="3"][aria-pressed="true"] { background: var(--warn); border-color: var(--warn); }
+.grade-btn[data-val="5"][aria-pressed="true"] { background: var(--gold-500); border-color: var(--gold-500); }
+
+.toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+.field { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+.field input, .field select, .field textarea {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--surface); color: var(--text); font-size: 14px; font-family: inherit;
+}
+
+@media (max-width: 800px) {
+    body[data-app="1"] { grid-template-columns: 1fr; }
+    .app-sidebar { position: fixed; left: -280px; width: 260px; transition: left .2s; z-index: 100; }
+    .app-sidebar.open { left: 0; }
+    .app-burger { display: block; }
+}

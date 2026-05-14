@@ -1,67 +1,68 @@
-# Islamic School Management
+# Madrasa — Islamic School Management Website
 
-A WordPress plugin for running a Madrasa / Islamic Academy end-to-end:
-students, teachers, classes, attendance, **Quran recitation grading on a 0-5
-Tajweed-aware scale**, Hifz tracking, daily + namaz duas, and PDF/Excel/CSV
-reports — all behind a modern green-and-gold UI with dark-mode support.
+A complete school management website built as static HTML/CSS/JS + Supabase.
+No server to maintain. Free to host. Custom domain optional.
 
 ```
-islamic-school-mgmt/
-├── islamic-school-mgmt.php           # Plugin bootstrap
-├── uninstall.php                     # Schema teardown
-├── composer.json                     # TCPDF + PhpSpreadsheet + JWT
-├── readme.txt                        # WP plugin readme
-├── INSTALL.md                        # Full install / deploy guide
-├── includes/
-│   ├── class-ism-plugin.php          # Top-level wiring
-│   ├── class-ism-activator.php       # 18-table schema migration + seed data
-│   ├── class-ism-deactivator.php
-│   ├── class-ism-roles.php           # Custom roles + capability map
-│   ├── class-ism-security.php        # Nonces, sanitisation, rate limiting
-│   ├── class-ism-audit.php           # Append-only audit log
-│   ├── modules/
-│   │   ├── class-ism-quran-recitation.php  # ⭐ 0-5 grading core
-│   │   ├── class-ism-memorisation.php
-│   │   └── class-ism-duas.php
-│   ├── api/                          # REST controllers (ism/v1)
-│   │   ├── class-ism-rest-api.php
-│   │   ├── class-ism-students-controller.php
-│   │   ├── class-ism-teachers-controller.php
-│   │   ├── class-ism-classes-controller.php
-│   │   ├── class-ism-assessments-controller.php
-│   │   ├── class-ism-memorisation-controller.php
-│   │   ├── class-ism-duas-controller.php
-│   │   ├── class-ism-attendance-controller.php
-│   │   ├── class-ism-dashboard-controller.php
-│   │   └── class-ism-reports-controller.php
-│   └── reporting/
-│       ├── class-ism-pdf-exporter.php       # TCPDF + HTML fallback
-│       ├── class-ism-excel-exporter.php     # PhpSpreadsheet + legacy .xls fallback
-│       └── class-ism-csv-exporter.php
-├── admin/
-│   ├── class-ism-admin.php
-│   └── views/                        # 10 admin screens (Tailwind/Chart.js)
-├── public/
-│   └── class-ism-public.php          # [ism_login], [ism_student_dashboard], [ism_teacher_dashboard]
+ISMS/
+├── index.html, about.html, admissions.html, contact.html, login.html   # public site
+├── app.html                                  # logged-in portal (SPA shell)
 ├── assets/
-│   ├── css/ism.css                   # Green-and-gold theme, dark mode, RTL-friendly
+│   ├── css/site.css     # public-facing theme (green + gold)
+│   ├── css/app.css      # portal layout
 │   └── js/
-│       ├── ism-admin.js              # Admin SPA against ism/v1
-│       └── ism-public.js             # Public dashboards
-└── languages/                        # i18n .pot lives here once generated
+│       ├── config.js              # YOUR Supabase URL + key go here
+│       ├── supabase-client.js     # auth + audit helpers
+│       ├── app.js                 # SPA router + role-aware sidebar
+│       ├── site.js, partials.js   # public-page niceties
+│       ├── modules/
+│       │   ├── quran-recitation.js  # 0-5 grading logic + recommendations
+│       │   └── exporters.js         # jsPDF + SheetJS + CSV
+│       └── views/                   # one .js per route
+│           ├── dashboard.js, students.js, teachers.js, classes.js,
+│           ├── assessments.js, memorisation.js, duas.js, attendance.js,
+│           ├── reports.js, settings.js, audit.js,
+│           └── my-grades.js, my-memorisation.js, my-duas.js, my-attendance.js
+├── supabase/
+│   ├── 01_schema.sql    # 18 tables + triggers
+│   ├── 02_rls.sql       # row-level security policies
+│   └── 03_seed.sql      # surahs, duas, subjects, defaults
+└── DEPLOY.md            # step-by-step deployment guide
 ```
+
+## Stack
+
+- **Frontend:** pure HTML + ES modules + Tailwind-flavoured CSS (no build step)
+- **Auth + DB:** Supabase (Postgres + Row Level Security + Auth)
+- **Charts:** Chart.js (CDN)
+- **PDF / Excel:** jsPDF + jspdf-autotable / SheetJS (CDN, lazy-loaded)
+- **Host:** Cloudflare Pages (free, unlimited bandwidth)
+
+## Roles
+
+| Role     | Can do                                                                   |
+|----------|--------------------------------------------------------------------------|
+| admin    | Everything: manage students, teachers, classes, grading, audit, settings |
+| teacher  | View own classes, take attendance, grade students, export reports        |
+| student  | View own grades, memorisation, duas, attendance, download report card    |
+| parent   | (Stub) Link to child's account                                           |
 
 ## Quick start
 
-1. `composer install --no-dev` inside the plugin folder (optional but recommended).
-2. Activate plugin via WP admin.
-3. Visit **Islamic School → Settings** to set school name + logo.
-4. Place the relevant shortcode on your public dashboard page.
+See [`DEPLOY.md`](DEPLOY.md) — it walks you through Supabase + Cloudflare in about 30 minutes.
 
-See `INSTALL.md` for a complete deployment walk-through, REST API reference,
-security model, and roadmap.
+## Local preview
+
+You can preview the public pages locally with any static server:
+
+```bash
+# from this folder
+python -m http.server 8000
+# then open http://localhost:8000
+```
+
+The portal pages (`app.html`) require Supabase to be configured.
 
 ## License
 
-GPL-2.0-or-later. Quran text included in seed data is from the public-domain
-Uthmani text — replace freely with your preferred mushaf rasm.
+GPL-2.0-or-later. Quran text included is from the public-domain Uthmani text.
