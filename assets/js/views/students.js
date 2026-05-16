@@ -1,5 +1,6 @@
-/* Students CRUD */
+/* Students CRUD — with admin-only "create login" via Edge Function */
 import { audit } from '../supabase-client.js';
+import { createLogin } from '../modules/admin-users.js';
 export const title = 'Students';
 
 export async function render(root, { profile, supabase }) {
@@ -7,16 +8,17 @@ export async function render(root, { profile, supabase }) {
     root.innerHTML = `
         <div class="card">
             <div class="toolbar">
-                <input id="search" type="search" class="form-input" placeholder="Search by name or code…" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)">
+                <input id="search" type="search" placeholder="Search by name or code…" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)">
                 ${canWrite ? '<button class="btn btn-primary" id="add-btn">+ Add student</button>' : ''}
                 <span class="text-muted" id="count" style="margin-left:auto"></span>
             </div>
             <table class="table" id="students-table">
-                <thead><tr><th>Code</th><th>Name</th><th>Guardian</th><th>Phone</th><th>Status</th><th></th></tr></thead>
+                <thead><tr><th>Code</th><th>Name</th><th>Guardian</th><th>Phone</th><th>Login?</th><th>Status</th><th></th></tr></thead>
                 <tbody></tbody>
             </table>
         </div>
-        <dialog id="student-dialog" style="border:0; border-radius: var(--radius); padding:0; max-width:520px; width:90%">
+
+        <dialog id="student-dialog" style="border:0; border-radius: var(--radius); padding:0; max-width:600px; width:92%">
             <form id="student-form" style="padding:24px">
                 <h2 id="dlg-title" style="margin-top:0; color: var(--green-700)">Add student</h2>
                 <input type="hidden" name="id">
@@ -39,10 +41,22 @@ export async function render(root, { profile, supabase }) {
                         <label>Guardian email<input type="email" name="guardian_email"></label>
                     </div>
                     <label>Address<textarea name="address" rows="2"></textarea></label>
+
+                    <fieldset style="border:1px solid var(--border); border-radius:8px; padding:14px; margin-top:6px">
+                        <legend style="color:var(--green-700); font-weight:600; padding:0 8px">Login credentials</legend>
+                        <p class="text-muted" style="font-size:13px; margin:0 0 12px">
+                            Optional. Set an email + password the student (or guardian) will use to sign in to the portal.
+                        </p>
+                        <div class="row">
+                            <label>Login email (username)<input type="email" name="login_email" placeholder="student@example.com"></label>
+                            <label>Login password<input type="password" name="login_password" placeholder="min 8 chars"></label>
+                        </div>
+                    </fieldset>
                 </div>
+                <div id="form-alert"></div>
                 <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px">
                     <button class="btn" type="button" id="dlg-cancel">Cancel</button>
-                    <button class="btn btn-primary" type="submit">Save</button>
+                    <button class="btn btn-primary" type="submit" id="dlg-save">Save</button>
                 </div>
             </form>
         </dialog>`;
@@ -53,15 +67,15 @@ export async function render(root, { profile, supabase }) {
     let cache = [];
 
     async function load() {
-        const { data, error } = await supabase.from('students')
-            .select('*').order('last_name').order('first_name');
+        const { data, error } = await supabase
+            .from('students').select('*').order('last_name').order('first_name');
         if (error) { alert(error.message); return; }
         cache = data;
         renderRows();
     }
 
     function renderRows() {
-        const q = search.value.toLowerCase().trim();
+        const q = (search?.value || '').toLowerCase().trim();
         const filtered = cache.filter(s =>
             !q || (s.first_name + ' ' + s.last_name + ' ' + s.student_code).toLowerCase().includes(q));
         document.getElementById('count').textContent = `${filtered.length} students`;
@@ -72,25 +86,31 @@ export async function render(root, { profile, supabase }) {
                 <td>${s.first_name} ${s.last_name}</td>
                 <td>${s.guardian_name || ''}</td>
                 <td>${s.guardian_phone || ''}</td>
+                <td>${s.user_id
+                        ? '<span class="chip">linked</span>'
+                        : (canWrite ? '<button class="btn add-login-btn" data-id="' + s.id + '">+ Create login</button>' : '<span class="chip warn">no login</span>')}</td>
                 <td><span class="chip ${s.status === 'active' ? '' : 'warn'}">${s.status}</span></td>
-                <td>
-                    ${canWrite ? `<button class="btn edit-btn" data-id="${s.id}">Edit</button>
-                                  <button class="btn del-btn"  data-id="${s.id}">Delete</button>` : ''}
-                </td>
-            </tr>`).join('') || '<tr><td colspan="6"><em>No students.</em></td></tr>';
+                <td>${canWrite ? `<button class="btn edit-btn" data-id="${s.id}">Edit</button>
+                                   <button class="btn del-btn"  data-id="${s.id}">Delete</button>` : ''}</td>
+            </tr>`).join('') || '<tr><td colspan="7"><em>No students.</em></td></tr>';
 
         tbody.querySelectorAll('.edit-btn').forEach(b => b.addEventListener('click', () => openEdit(b.dataset.id)));
         tbody.querySelectorAll('.del-btn').forEach(b => b.addEventListener('click', () => del(b.dataset.id)));
+        tbody.querySelectorAll('.add-login-btn').forEach(b => b.addEventListener('click', () => openEdit(b.dataset.id)));
     }
 
     function openEdit(id) {
-        const s = cache.find(x => x.id == id) || {};
+        const s = cache.find(x => String(x.id) === String(id)) || {};
         document.getElementById('dlg-title').textContent = id ? 'Edit student' : 'Add student';
         for (const el of form.elements) {
-            if (el.name && s[el.name] !== undefined) el.value = s[el.name] ?? '';
-            else if (el.name && !id) el.value = '';
+            if (!el.name) continue;
+            if (el.name === 'login_email' || el.name === 'login_password') { el.value = ''; continue; }
+            if (el.name === 'id') { el.value = s.id || ''; continue; }
+            el.value = s[el.name] != null ? s[el.name] : '';
         }
-        form.elements['id'].value = s.id || '';
+        const fs = form.querySelector('fieldset');
+        fs.style.display = s.user_id ? 'none' : '';
+        document.getElementById('form-alert').innerHTML = '';
         dlg.showModal();
     }
 
@@ -104,21 +124,55 @@ export async function render(root, { profile, supabase }) {
 
     document.getElementById('add-btn')?.addEventListener('click', () => openEdit(null));
     document.getElementById('dlg-cancel').addEventListener('click', () => dlg.close());
-    search.addEventListener('input', renderRows);
+    search?.addEventListener('input', renderRows);
 
     form.addEventListener('submit', async e => {
         e.preventDefault();
-        const fd = new FormData(form);
-        const payload = Object.fromEntries(fd.entries());
-        const id = payload.id; delete payload.id;
-        for (const k of Object.keys(payload)) if (payload[k] === '') payload[k] = null;
-        let res;
-        if (id) res = await supabase.from('students').update(payload).eq('id', id);
-        else    res = await supabase.from('students').insert(payload);
-        if (res.error) { alert(res.error.message); return; }
-        await audit(id ? 'student.update' : 'student.create', 'student', id || null, payload);
-        dlg.close();
-        load();
+        const alertBox = document.getElementById('form-alert');
+        const saveBtn  = document.getElementById('dlg-save');
+        alertBox.innerHTML = '';
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving…';
+
+        try {
+            const payload = Object.fromEntries(new FormData(form).entries());
+            const id            = payload.id;            delete payload.id;
+            const loginEmail    = payload.login_email;    delete payload.login_email;
+            const loginPassword = payload.login_password; delete payload.login_password;
+            for (const k of Object.keys(payload)) if (payload[k] === '') payload[k] = null;
+
+            let studentId = id;
+            if (id) {
+                const { error } = await supabase.from('students').update(payload).eq('id', id);
+                if (error) throw error;
+            } else {
+                const { data, error } = await supabase.from('students').insert(payload).select('id').single();
+                if (error) throw error;
+                studentId = data.id;
+            }
+            await audit(id ? 'student.update' : 'student.create', 'student', studentId, payload);
+
+            if (loginEmail && loginPassword) {
+                const fullName = `${payload.first_name || ''} ${payload.last_name || ''}`.trim();
+                await createLogin({
+                    email:      loginEmail,
+                    password:   loginPassword,
+                    full_name:  fullName,
+                    role:       'student',
+                    student_id: Number(studentId),
+                });
+                alertBox.innerHTML = `<div class="alert alert-success">Student saved and login created. They can sign in with <strong>${loginEmail}</strong>.</div>`;
+                setTimeout(() => { dlg.close(); load(); }, 1200);
+            } else {
+                dlg.close();
+                load();
+            }
+        } catch (err) {
+            alertBox.innerHTML = `<div class="alert alert-danger">${err.message || 'Save failed.'}</div>`;
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save';
+        }
     });
 
     load();
