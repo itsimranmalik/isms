@@ -20,6 +20,8 @@ const NAV_BY_ROLE = {
         { hash: 'reports',      label: 'Reports',       icon: '📄' },
         { hash: 'audit',        label: 'Audit log',     icon: '📜' },
         { hash: 'settings',     label: 'Settings',      icon: '⚙️' },
+        { grp: 'You' },
+        { hash: 'account',      label: 'My Account',    icon: '👤' },
     ],
     teacher: [
         { hash: 'dashboard',    label: 'Dashboard',     icon: '📊' },
@@ -30,6 +32,7 @@ const NAV_BY_ROLE = {
         { hash: 'duas',         label: 'Duas',          icon: '🤲' },
         { hash: 'attendance',   label: 'Attendance',    icon: '✅' },
         { hash: 'reports',      label: 'Reports',       icon: '📄' },
+        { hash: 'account',      label: 'My Account',    icon: '👤' },
     ],
     student: [
         { hash: 'dashboard',    label: 'My Dashboard',  icon: '📊' },
@@ -38,9 +41,11 @@ const NAV_BY_ROLE = {
         { hash: 'my-duas',      label: 'Duas',          icon: '🤲' },
         { hash: 'my-attendance',label: 'Attendance',    icon: '✅' },
         { hash: 'reports',      label: 'My Reports',    icon: '📄' },
+        { hash: 'account',      label: 'My Account',    icon: '👤' },
     ],
     parent: [
         { hash: 'dashboard',    label: 'Overview',      icon: '📊' },
+        { hash: 'account',      label: 'My Account',    icon: '👤' },
     ],
 };
 
