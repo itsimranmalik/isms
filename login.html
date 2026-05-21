@@ -3,8 +3,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Sign in — Madrasa</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='50' font-size='52'>☪</text></svg>">
+    <title>Sign in - Madrasa</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='50' font-size='52'>&#9770;</text></svg>">
     <link rel="stylesheet" href="assets/css/site.css">
 </head>
 <body>
@@ -13,12 +13,12 @@
     <section class="section">
         <div class="container" style="max-width: 460px">
             <div class="card" style="margin-top: 32px">
-                <h1 style="margin-bottom: 4px"><span style="color: var(--gold-500)">☪</span> Sign in</h1>
-                <p class="text-muted" style="margin-top: 0">Admin · Teacher · Student · Parent</p>
+                <h1 style="margin-bottom: 4px"><span style="color: var(--gold-500)">&#9770;</span> Sign in</h1>
+                <p class="text-muted" style="margin-top: 0">Admin &middot; Teacher &middot; Student &middot; Parent</p>
 
                 <form class="form" id="login-form" style="margin-top: 20px">
-                    <label>Email
-                        <input required type="email" name="email" autocomplete="email">
+                    <label>Username or email
+                        <input required type="text" name="identifier" autocomplete="username" placeholder="ahmed.teacher">
                     </label>
                     <label>Password
                         <input required type="password" name="password" autocomplete="current-password">
@@ -30,8 +30,11 @@
                 <details style="margin-top: 18px">
                     <summary style="cursor:pointer; color: var(--green-700)">Create a new account</summary>
                     <form class="form" id="signup-form" style="margin-top: 12px">
+                        <p class="text-muted" style="font-size:13px; margin:0 0 8px">
+                            Most accounts are created for you by the admin. Use this only if your school invited you to self-register.
+                        </p>
                         <label>Full name<input required name="full_name"></label>
-                        <label>Email<input required type="email" name="email"></label>
+                        <label>Username or email<input required name="identifier" placeholder="aisha or aisha@example.com"></label>
                         <label>Password (min 8 chars)<input required minlength="8" type="password" name="password"></label>
                         <label>Account type
                             <select name="role">
@@ -57,25 +60,27 @@
     <script src="assets/js/config.js"></script>
     <script type="module">
         import { supabase, signIn, signUp, currentProfile } from './assets/js/supabase-client.js';
+        import { usernameToEmail } from './assets/js/modules/admin-users.js';
 
         // Already logged in? Send straight to the app.
         currentProfile().then(p => { if (p) location.href = 'app.html'; });
 
-        const loginForm = document.getElementById('login-form');
+        const loginForm  = document.getElementById('login-form');
         const loginAlert = document.getElementById('login-alert');
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             loginAlert.innerHTML = '';
             const fd = new FormData(loginForm);
             try {
-                await signIn(fd.get('email'), fd.get('password'));
+                const email = usernameToEmail(fd.get('identifier'));
+                await signIn(email, fd.get('password'));
                 location.href = 'app.html';
             } catch (err) {
-                loginAlert.innerHTML = `<div class="alert alert-danger">${err.message || 'Login failed.'}</div>`;
+                loginAlert.innerHTML = '<div class="alert alert-danger">' + (err.message || 'Login failed.') + '</div>';
             }
         });
 
-        const signupForm = document.getElementById('signup-form');
+        const signupForm  = document.getElementById('signup-form');
         const signupAlert = document.getElementById('signup-alert');
         signupForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -83,27 +88,31 @@
             const fd = new FormData(signupForm);
             try {
                 await signUp({
-                    email: fd.get('email'),
-                    password: fd.get('password'),
+                    email:     usernameToEmail(fd.get('identifier')),
+                    password:  fd.get('password'),
                     full_name: fd.get('full_name'),
-                    role: fd.get('role'),
+                    role:      fd.get('role'),
                 });
-                signupAlert.innerHTML = '<div class="alert alert-success">Account created. Check your email to confirm, then sign in.</div>';
+                signupAlert.innerHTML = '<div class="alert alert-success">Account created. You can sign in now.</div>';
                 signupForm.reset();
             } catch (err) {
-                signupAlert.innerHTML = `<div class="alert alert-danger">${err.message || 'Sign-up failed.'}</div>`;
+                signupAlert.innerHTML = '<div class="alert alert-danger">' + (err.message || 'Sign-up failed.') + '</div>';
             }
         });
 
         document.getElementById('forgot-link').addEventListener('click', async (e) => {
             e.preventDefault();
-            const email = prompt('Enter the email address for the account:');
-            if (!email) return;
-            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            var id = prompt('Enter the real email on the account. Username-only accounts cannot self-reset - ask the admin.');
+            if (!id) return;
+            if (!id.includes('@')) {
+                loginAlert.innerHTML = '<div class="alert alert-info">This account uses a username only - please ask the admin to reset your password.</div>';
+                return;
+            }
+            const { error } = await supabase.auth.resetPasswordForEmail(id, {
                 redirectTo: location.origin + '/login.html',
             });
             loginAlert.innerHTML = error
-                ? `<div class="alert alert-danger">${error.message}</div>`
+                ? '<div class="alert alert-danger">' + error.message + '</div>'
                 : '<div class="alert alert-success">If that email exists, a reset link has been sent.</div>';
         });
     </script>

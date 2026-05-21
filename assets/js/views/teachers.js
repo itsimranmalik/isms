@@ -39,14 +39,14 @@ export async function render(root, { profile, supabase }) {
                     <fieldset style="border:1px solid var(--border); border-radius:8px; padding:14px; margin-top:6px">
                         <legend style="color:var(--green-700); font-weight:600; padding:0 8px">Login credentials</legend>
                         <p class="text-muted" style="font-size:13px; margin:0 0 12px">
-                            Set a username (email) and password the teacher will use to sign in. Leave blank to create the record without a login (you can add it later).
+                            Pick a username the teacher will type when signing in. Letters, digits, dot/underscore/dash; 3–40 characters. (You can also use a real email if you prefer.) Leave blank to create the record without a login — you can add one later.
                         </p>
                         <div class="row">
-                            <label>Login email (username)<input type="email" name="login_email" placeholder="teacher@school.com"></label>
-                            <label>Login password<input type="password" name="login_password" placeholder="min 8 chars"></label>
+                            <label>Username<input type="text" name="login_username" placeholder="ahmed.teacher" autocomplete="off"></label>
+                            <label>Password<input type="password" name="login_password" placeholder="min 8 chars" autocomplete="new-password"></label>
                         </div>
                         <p class="text-muted" style="font-size:12px; margin:8px 0 0">
-                            On save, the auth user is created in Supabase and linked to this teacher record automatically.
+                            On save, the login is created in Supabase and linked to this teacher record automatically.
                         </p>
                     </fieldset>
                 </div>
@@ -94,12 +94,12 @@ export async function render(root, { profile, supabase }) {
     function openEdit(t) {
         document.getElementById('dlg-title').textContent = t ? 'Edit teacher' : 'Add teacher';
         for (const el of form.elements) {
-            if (el.name && el.name !== 'id' && el.name !== 'login_email' && el.name !== 'login_password') {
+            if (el.name && el.name !== 'id' && el.name !== 'login_username' && el.name !== 'login_password') {
                 el.value = t && t[el.name] != null ? t[el.name] : '';
             }
         }
         form.elements['id'].value = t?.id || '';
-        form.elements['login_email'].value = '';
+        form.elements['login_username'].value = '';
         form.elements['login_password'].value = '';
         // If editing and already linked, hide the credentials fieldset
         const fs = form.querySelector('fieldset');
@@ -117,8 +117,10 @@ export async function render(root, { profile, supabase }) {
         supabase.from('teachers').select('*').eq('id', teacherId).single().then(({ data }) => {
             if (!data) return;
             openEdit(data);
-            // Hint: prefill login_email from profile email if present
-            if (data.email) form.elements['login_email'].value = data.email;
+            // Hint: suggest a username from staff_code + last name
+            const guess = (data.staff_code || data.last_name || 'user')
+                .toLowerCase().replace(/[^a-z0-9._-]/g, '');
+            form.elements['login_username'].value = guess;
         });
     }
 
@@ -143,8 +145,8 @@ export async function render(root, { profile, supabase }) {
 
         try {
             const payload = Object.fromEntries(new FormData(form).entries());
-            const id            = payload.id;            delete payload.id;
-            const loginEmail    = payload.login_email;    delete payload.login_email;
+            const id            = payload.id;             delete payload.id;
+            const loginUsername = payload.login_username; delete payload.login_username;
             const loginPassword = payload.login_password; delete payload.login_password;
             for (const k of Object.keys(payload)) if (payload[k] === '') payload[k] = null;
 
@@ -161,17 +163,17 @@ export async function render(root, { profile, supabase }) {
             await audit(id ? 'teacher.update' : 'teacher.create', 'teacher', teacherId, payload);
 
             // 2) If admin entered login credentials, create the auth user + link
-            if (loginEmail && loginPassword) {
+            if (loginUsername && loginPassword) {
                 const fullName = `${payload.first_name || ''} ${payload.last_name || ''}`.trim();
                 await createLogin({
-                    email:      loginEmail,
+                    username:   loginUsername,
                     password:   loginPassword,
                     full_name:  fullName,
                     role:       'teacher',
                     teacher_id: Number(teacherId),
                 });
-                alertBox.innerHTML = `<div class="alert alert-success">Teacher saved and login created. They can now sign in with <strong>${loginEmail}</strong>.</div>`;
-                setTimeout(() => { dlg.close(); load(); }, 1200);
+                alertBox.innerHTML = `<div class="alert alert-success">Teacher saved and login created. They can sign in with username <strong>${loginUsername}</strong>.</div>`;
+                setTimeout(() => { dlg.close(); load(); }, 1500);
             } else {
                 dlg.close();
                 load();

@@ -45,11 +45,11 @@ export async function render(root, { profile, supabase }) {
                     <fieldset style="border:1px solid var(--border); border-radius:8px; padding:14px; margin-top:6px">
                         <legend style="color:var(--green-700); font-weight:600; padding:0 8px">Login credentials</legend>
                         <p class="text-muted" style="font-size:13px; margin:0 0 12px">
-                            Optional. Set an email + password the student (or guardian) will use to sign in to the portal.
+                            Optional. Pick a username the student (or guardian) will type when signing in. Letters, digits, dot/underscore/dash; 3–40 characters. (A real email is also accepted.)
                         </p>
                         <div class="row">
-                            <label>Login email (username)<input type="email" name="login_email" placeholder="student@example.com"></label>
-                            <label>Login password<input type="password" name="login_password" placeholder="min 8 chars"></label>
+                            <label>Username<input type="text" name="login_username" placeholder="aisha.s" autocomplete="off"></label>
+                            <label>Password<input type="password" name="login_password" placeholder="min 8 chars" autocomplete="new-password"></label>
                         </div>
                     </fieldset>
                 </div>
@@ -104,9 +104,15 @@ export async function render(root, { profile, supabase }) {
         document.getElementById('dlg-title').textContent = id ? 'Edit student' : 'Add student';
         for (const el of form.elements) {
             if (!el.name) continue;
-            if (el.name === 'login_email' || el.name === 'login_password') { el.value = ''; continue; }
+            if (el.name === 'login_username' || el.name === 'login_password') { el.value = ''; continue; }
             if (el.name === 'id') { el.value = s.id || ''; continue; }
             el.value = s[el.name] != null ? s[el.name] : '';
+        }
+        // If creating a login for an existing unlinked student, suggest a username
+        if (s.id && !s.user_id) {
+            const guess = (s.student_code || s.last_name || 'user')
+                .toLowerCase().replace(/[^a-z0-9._-]/g, '');
+            form.elements['login_username'].value = guess;
         }
         const fs = form.querySelector('fieldset');
         fs.style.display = s.user_id ? 'none' : '';
@@ -136,8 +142,8 @@ export async function render(root, { profile, supabase }) {
 
         try {
             const payload = Object.fromEntries(new FormData(form).entries());
-            const id            = payload.id;            delete payload.id;
-            const loginEmail    = payload.login_email;    delete payload.login_email;
+            const id            = payload.id;             delete payload.id;
+            const loginUsername = payload.login_username; delete payload.login_username;
             const loginPassword = payload.login_password; delete payload.login_password;
             for (const k of Object.keys(payload)) if (payload[k] === '') payload[k] = null;
 
@@ -152,17 +158,17 @@ export async function render(root, { profile, supabase }) {
             }
             await audit(id ? 'student.update' : 'student.create', 'student', studentId, payload);
 
-            if (loginEmail && loginPassword) {
+            if (loginUsername && loginPassword) {
                 const fullName = `${payload.first_name || ''} ${payload.last_name || ''}`.trim();
                 await createLogin({
-                    email:      loginEmail,
+                    username:   loginUsername,
                     password:   loginPassword,
                     full_name:  fullName,
                     role:       'student',
                     student_id: Number(studentId),
                 });
-                alertBox.innerHTML = `<div class="alert alert-success">Student saved and login created. They can sign in with <strong>${loginEmail}</strong>.</div>`;
-                setTimeout(() => { dlg.close(); load(); }, 1200);
+                alertBox.innerHTML = `<div class="alert alert-success">Student saved and login created. They can sign in with username <strong>${loginUsername}</strong>.</div>`;
+                setTimeout(() => { dlg.close(); load(); }, 1500);
             } else {
                 dlg.close();
                 load();
