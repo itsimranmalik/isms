@@ -1,13 +1,26 @@
-/* Classes — with student enrolment + teacher assignment */
+/* Classes — admin: full control; teacher: enrol students in classes they teach. */
 import { audit } from '../supabase-client.js';
 export const title = 'Classes';
 
 export async function render(root, { profile, supabase }) {
-    const canWrite = profile.role === 'admin';
+    const isAdmin   = profile.role === 'admin';
+    const isTeacher = profile.role === 'teacher';
+
+    // Which classes does this teacher teach? (for permission display)
+    let myClassIds = new Set();
+    if (isTeacher && profile.teacher_id) {
+        const { data: mine } = await supabase
+            .from('class_teachers')
+            .select('class_id')
+            .eq('teacher_id', profile.teacher_id);
+        myClassIds = new Set((mine || []).map(r => r.class_id));
+    }
+    const canEnrolInClass = (classId) => isAdmin || (isTeacher && myClassIds.has(classId));
+
     root.innerHTML = `
         <div class="card">
             <div class="toolbar">
-                ${canWrite ? '<button class="btn btn-primary" id="add-btn">+ New class</button>' : ''}
+                ${isAdmin ? '<button class="btn btn-primary" id="add-btn">+ New class</button>' : ''}
                 <span class="text-muted" id="count" style="margin-left:auto"></span>
             </div>
             <table class="table">
@@ -16,13 +29,14 @@ export async function render(root, { profile, supabase }) {
             </table>
         </div>
         <div class="card" id="detail-card" style="display:none; margin-top:16px"></div>
+
         <dialog id="class-dialog" style="border:0; border-radius: var(--radius); padding:0; max-width:480px; width:90%">
             <form id="class-form" style="padding:24px">
                 <h2 style="margin-top:0; color: var(--green-700)">Class</h2>
                 <input type="hidden" name="id">
                 <div class="form">
                     <label>Name *<input required name="name"></label>
-                    <label>Level<input name="level" placeholder="Beginner / Intermediate / …"></label>
+                    <label>Level<input name="level" placeholder="Beginner / Intermediate / ..."></label>
                     <label>Description<textarea name="description" rows="2"></textarea></label>
                 </div>
                 <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px">
@@ -42,17 +56,22 @@ export async function render(root, { profile, supabase }) {
             .order('name');
         document.getElementById('count').textContent = `${data?.length || 0} classes`;
         const tbody = root.querySelector('tbody');
-        tbody.innerHTML = (data || []).map(c => `
-            <tr>
-                <td><a href="#" data-cid="${c.id}" class="detail-link"><strong>${c.name}</strong></a></td>
+        tbody.innerHTML = (data || []).map(c => {
+            const youTeach = myClassIds.has(c.id);
+            return `<tr>
+                <td><a href="#" data-cid="${c.id}" class="detail-link"><strong>${c.name}</strong></a>${youTeach ? ' <span class="chip gold">you teach</span>' : ''}</td>
                 <td>${c.level || ''}</td>
                 <td>${c.class_students?.[0]?.count || 0}</td>
                 <td>${c.class_teachers?.[0]?.count || 0}</td>
-                <td>${canWrite ? `<button class="btn edit-btn" data-cls='${JSON.stringify(c)}'>Edit</button>
-                                   <button class="btn del-btn" data-id="${c.id}">Delete</button>` : ''}</td>
-            </tr>`).join('') || '<tr><td colspan="5"><em>No classes.</em></td></tr>';
+                <td>${isAdmin ? `<button class="btn edit-btn" data-cls='${JSON.stringify(c).replace(/'/g, "&apos;")}'>Edit</button>
+                                  <button class="btn del-btn" data-id="${c.id}">Delete</button>` : ''}</td>
+            </tr>`;
+        }).join('') || '<tr><td colspan="5"><em>No classes.</em></td></tr>';
 
-        tbody.querySelectorAll('.edit-btn').forEach(b => b.addEventListener('click', () => openEdit(JSON.parse(b.dataset.cls))));
+        tbody.querySelectorAll('.edit-btn').forEach(b => b.addEventListener('click', () => {
+            const raw = b.dataset.cls.replace(/&apos;/g, "'");
+            openEdit(JSON.parse(raw));
+        }));
         tbody.querySelectorAll('.del-btn').forEach(b => b.addEventListener('click', () => del(b.dataset.id)));
         tbody.querySelectorAll('.detail-link').forEach(a => a.addEventListener('click', e => {
             e.preventDefault();
@@ -84,19 +103,26 @@ export async function render(root, { profile, supabase }) {
         const enrolledIds = new Set((enrolled || []).map(r => r.student_id));
         const assignedIds = new Set((assigned || []).map(r => r.teacher_id));
         const detail = document.getElementById('detail-card');
+        const canEnrol = canEnrolInClass(classId);
+
         detail.style.display = '';
         detail.innerHTML = `
-            <h3>${cls.name} ${cls.level ? '<span class="chip">' + cls.level + '</span>' : ''}</h3>
+            <h3>${cls.name} ${cls.level ? '<span class="chip">' + cls.level + '</span>' : ''}
+                ${myClassIds.has(classId) ? '<span class="chip gold">you teach this class</span>' : ''}
+            </h3>
+            ${!isAdmin && !canEnrol ? '<div class="alert alert-info">Read-only — you are not assigned to teach this class.</div>' : ''}
             <div class="grid-app" style="margin-top:12px">
                 <div class="card span-6">
                     <h3>Enrolled students (${enrolled?.length || 0})</h3>
                     <ul style="max-height:280px;overflow:auto;padding-left:18px">
-                        ${(enrolled || []).map(e => `<li>${e.students?.first_name} ${e.students?.last_name} <button class="btn unenrol-btn" data-id="${e.student_id}">Remove</button></li>`).join('') || '<em>None.</em>'}
+                        ${(enrolled || []).map(e => `<li>${e.students?.first_name} ${e.students?.last_name}
+                            ${canEnrol ? '<button class="btn unenrol-btn" data-id="' + e.student_id + '">Remove</button>' : ''}
+                          </li>`).join('') || '<em>None.</em>'}
                     </ul>
-                    ${canWrite ? `<div class="toolbar">
+                    ${canEnrol ? `<div class="toolbar">
                         <select id="enrol-select">
-                            <option value="">Pick a student…</option>
-                            ${(students || []).filter(s => !enrolledIds.has(s.id)).map(s => `<option value="${s.id}">${s.first_name} ${s.last_name}</option>`).join('')}
+                            <option value="">Pick a student...</option>
+                            ${(students || []).filter(s => !enrolledIds.has(s.id)).map(s => `<option value="${s.id}">${s.first_name} ${s.last_name} (${s.student_code})</option>`).join('')}
                         </select>
                         <button class="btn btn-primary" id="enrol-btn">Enrol</button>
                     </div>` : ''}
@@ -105,11 +131,12 @@ export async function render(root, { profile, supabase }) {
                     <h3>Assigned teachers (${assigned?.length || 0})</h3>
                     <ul style="max-height:280px;overflow:auto;padding-left:18px">
                         ${(assigned || []).map(t => `<li>${t.teachers?.first_name} ${t.teachers?.last_name} ${t.is_lead ? '<span class="chip gold">Lead</span>' : ''}
-                            <button class="btn unassign-btn" data-id="${t.teacher_id}">Remove</button></li>`).join('') || '<em>None.</em>'}
+                            ${isAdmin ? '<button class="btn unassign-btn" data-id="' + t.teacher_id + '">Remove</button>' : ''}
+                          </li>`).join('') || '<em>None.</em>'}
                     </ul>
-                    ${canWrite ? `<div class="toolbar">
+                    ${isAdmin ? `<div class="toolbar">
                         <select id="assign-select">
-                            <option value="">Pick a teacher…</option>
+                            <option value="">Pick a teacher...</option>
                             ${(teachers || []).filter(t => !assignedIds.has(t.id)).map(t => `<option value="${t.id}">${t.first_name} ${t.last_name}</option>`).join('')}
                         </select>
                         <label><input type="checkbox" id="assign-lead"> Lead</label>
@@ -118,28 +145,34 @@ export async function render(root, { profile, supabase }) {
                 </div>
             </div>`;
 
-        if (canWrite) {
+        if (canEnrol) {
             document.getElementById('enrol-btn').addEventListener('click', async () => {
                 const sid = Number(document.getElementById('enrol-select').value);
                 if (!sid) return;
-                await supabase.from('class_students').insert({ class_id: classId, student_id: sid });
+                const { error } = await supabase.from('class_students').insert({ class_id: classId, student_id: sid });
+                if (error) return alert(error.message);
                 await audit('class.enrol', 'class', classId, { student_id: sid });
                 showDetail(classId);
             });
+            detail.querySelectorAll('.unenrol-btn').forEach(b => b.addEventListener('click', async () => {
+                const { error } = await supabase.from('class_students').delete().eq('class_id', classId).eq('student_id', b.dataset.id);
+                if (error) return alert(error.message);
+                showDetail(classId);
+            }));
+        }
+        if (isAdmin) {
             document.getElementById('assign-btn').addEventListener('click', async () => {
                 const tid = Number(document.getElementById('assign-select').value);
                 const lead = document.getElementById('assign-lead').checked;
                 if (!tid) return;
-                await supabase.from('class_teachers').insert({ class_id: classId, teacher_id: tid, is_lead: lead });
+                const { error } = await supabase.from('class_teachers').insert({ class_id: classId, teacher_id: tid, is_lead: lead });
+                if (error) return alert(error.message);
                 await audit('class.assign_teacher', 'class', classId, { teacher_id: tid, lead });
                 showDetail(classId);
             });
-            detail.querySelectorAll('.unenrol-btn').forEach(b => b.addEventListener('click', async () => {
-                await supabase.from('class_students').delete().eq('class_id', classId).eq('student_id', b.dataset.id);
-                showDetail(classId);
-            }));
             detail.querySelectorAll('.unassign-btn').forEach(b => b.addEventListener('click', async () => {
-                await supabase.from('class_teachers').delete().eq('class_id', classId).eq('teacher_id', b.dataset.id);
+                const { error } = await supabase.from('class_teachers').delete().eq('class_id', classId).eq('teacher_id', b.dataset.id);
+                if (error) return alert(error.message);
                 showDetail(classId);
             }));
         }

@@ -12,7 +12,24 @@
 
     <section class="section">
         <div class="container" style="max-width: 460px">
-            <div class="card" style="margin-top: 32px">
+            <!-- Reset-password panel (shown only when the URL has a Supabase recovery hash) -->
+            <div class="card" style="margin-top: 32px; display:none" id="reset-card">
+                <h1 style="margin-bottom: 4px"><span style="color: var(--gold-500)">&#9770;</span> Set a new password</h1>
+                <p class="text-muted" style="margin-top: 0">Type your new password below to finish the reset.</p>
+                <form class="form" id="reset-form" style="margin-top: 16px">
+                    <label>New password (min 8 chars)
+                        <input required minlength="8" type="password" name="new_password" autocomplete="new-password">
+                    </label>
+                    <label>Confirm new password
+                        <input required minlength="8" type="password" name="confirm_password" autocomplete="new-password">
+                    </label>
+                    <div id="reset-alert"></div>
+                    <button class="btn btn-primary btn-lg" type="submit" id="reset-btn">Set new password</button>
+                </form>
+            </div>
+
+            <!-- Normal sign-in panel -->
+            <div class="card" style="margin-top: 32px" id="signin-card">
                 <h1 style="margin-bottom: 4px"><span style="color: var(--gold-500)">&#9770;</span> Sign in</h1>
                 <p class="text-muted" style="margin-top: 0">Admin &middot; Teacher &middot; Student &middot; Parent</p>
 
@@ -48,7 +65,8 @@
                     </form>
                 </details>
             </div>
-            <p class="text-muted text-center" style="margin-top: 16px; font-size: 13px">
+
+            <p class="text-muted text-center" style="margin-top: 16px; font-size: 13px" id="forgot-row">
                 Forgot password? <a href="#" id="forgot-link">Send reset email</a>
             </p>
         </div>
@@ -62,9 +80,57 @@
         import { supabase, signIn, signUp, currentProfile } from './assets/js/supabase-client.js';
         import { usernameToEmail } from './assets/js/modules/admin-users.js';
 
-        // Already logged in? Send straight to the app.
-        currentProfile().then(p => { if (p) location.href = 'app.html'; });
+        // ---------------------------------------------------------------
+        // Detect Supabase password-recovery flow.
+        // The reset link from email lands here with a URL fragment like:
+        //   #access_token=...&type=recovery&...
+        // Supabase's client (detectSessionInUrl:true) will turn that into a
+        // short-lived session, but we must NOT auto-redirect; instead show
+        // the password reset form.
+        // ---------------------------------------------------------------
+        const hash = new URLSearchParams(location.hash.replace(/^#/, ''));
+        const isRecovery = hash.get('type') === 'recovery';
 
+        if (isRecovery) {
+            // Show the reset card and hide the normal sign-in card
+            document.getElementById('reset-card').style.display = '';
+            document.getElementById('signin-card').style.display = 'none';
+            document.getElementById('forgot-row').style.display  = 'none';
+        } else {
+            // Already logged in (and not in recovery flow)? Skip straight to the app.
+            currentProfile().then(p => { if (p) location.href = 'app.html'; });
+        }
+
+        // ---- Reset-password form (recovery flow) ----------------------
+        const resetForm  = document.getElementById('reset-form');
+        const resetAlert = document.getElementById('reset-alert');
+        const resetBtn   = document.getElementById('reset-btn');
+        resetForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            resetAlert.innerHTML = '';
+            const fd = new FormData(resetForm);
+            const p1 = fd.get('new_password');
+            const p2 = fd.get('confirm_password');
+            if (p1 !== p2) {
+                resetAlert.innerHTML = '<div class="alert alert-danger">Passwords do not match.</div>';
+                return;
+            }
+            resetBtn.disabled = true; resetBtn.textContent = 'Updating...';
+            try {
+                const { error } = await supabase.auth.updateUser({ password: p1 });
+                if (error) throw error;
+                resetAlert.innerHTML = '<div class="alert alert-success">Password updated. Redirecting...</div>';
+                // Clean the hash so a reload doesn't re-trigger recovery flow
+                history.replaceState(null, '', location.pathname);
+                setTimeout(() => { location.href = 'app.html'; }, 1200);
+            } catch (err) {
+                resetAlert.innerHTML = '<div class="alert alert-danger">' + (err.message || 'Update failed.') + '</div>';
+            } finally {
+                resetBtn.disabled = false; resetBtn.textContent = 'Set new password';
+            }
+        });
+
+        // ---- Normal sign-in -------------------------------------------
         const loginForm  = document.getElementById('login-form');
         const loginAlert = document.getElementById('login-alert');
         loginForm.addEventListener('submit', async (e) => {
@@ -80,6 +146,7 @@
             }
         });
 
+        // ---- Self-registration ----------------------------------------
         const signupForm  = document.getElementById('signup-form');
         const signupAlert = document.getElementById('signup-alert');
         signupForm.addEventListener('submit', async (e) => {
@@ -100,16 +167,17 @@
             }
         });
 
+        // ---- Forgot password ------------------------------------------
         document.getElementById('forgot-link').addEventListener('click', async (e) => {
             e.preventDefault();
-            var id = prompt('Enter the real email on the account. Username-only accounts cannot self-reset - ask the admin.');
+            const id = prompt('Enter the real email on the account. Username-only accounts cannot self-reset - ask the admin.');
             if (!id) return;
             if (!id.includes('@')) {
                 loginAlert.innerHTML = '<div class="alert alert-info">This account uses a username only - please ask the admin to reset your password.</div>';
                 return;
             }
             const { error } = await supabase.auth.resetPasswordForEmail(id, {
-                redirectTo: location.origin + '/login.html',
+                redirectTo: location.origin + location.pathname.replace(/[^/]*$/, '') + 'login.html',
             });
             loginAlert.innerHTML = error
                 ? '<div class="alert alert-danger">' + error.message + '</div>'
