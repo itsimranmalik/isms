@@ -1,49 +1,136 @@
-/* Quran Recitation 0-5 grader UI */
+/* Quran Recitation — hierarchical: Classes -> Students -> Grading form.
+ * Available to admin and teacher only. */
 import { CATEGORIES, GUIDELINES, GRADE_BANDS, calculateAverage, resolveBand,
          identifyWeaknesses, generateRecommendations, recordAssessment } from '../modules/quran-recitation.js';
 import { audit } from '../supabase-client.js';
 
-export const title = 'Quran Recitation — Assessment';
+export const title = 'Quran Recitation';
 
 export async function render(root, { profile, supabase }) {
     if (profile.role !== 'admin' && profile.role !== 'teacher') {
-        root.innerHTML = '<div class="alert alert-danger">Only admin/teacher can record assessments.</div>';
+        root.innerHTML = '<div class="alert alert-danger">Only admin and teachers can grade.</div>';
         return;
     }
-    const [students, surahs, classes] = await Promise.all([
-        supabase.from('students').select('id, first_name, last_name, student_code').order('last_name'),
-        supabase.from('surahs').select('id, number, name_transliteration').order('number'),
-        supabase.from('classes').select('id, name').order('name'),
+    const params = new URLSearchParams((location.hash.split('?')[1]) || '');
+    const classId   = params.get('class')   ? Number(params.get('class'))   : null;
+    const studentId = params.get('student') ? Number(params.get('student')) : null;
+
+    if (!classId)   return renderClassList(root, supabase, profile);
+    if (!studentId) return renderStudentList(root, supabase, profile, classId);
+    return renderForm(root, supabase, profile, classId, studentId);
+}
+
+/* --------------------------------------------------------------------- */
+async function renderClassList(root, sb, profile) {
+    const isAdmin = profile.role === 'admin';
+    let classes;
+    if (isAdmin) {
+        const { data } = await sb.from('classes')
+            .select('id, name, level, class_students(count), class_teachers(count)')
+            .order('name');
+        classes = data || [];
+    } else {
+        const { data } = await sb.from('class_teachers')
+            .select('classes(id, name, level, class_students(count), class_teachers(count))')
+            .eq('teacher_id', profile.teacher_id);
+        classes = (data || []).map(r => r.classes).filter(Boolean);
+    }
+
+    root.innerHTML = `
+        <p class="text-muted" style="margin-top:0">Pick a class, then a student, to record a new Quran Recitation assessment.</p>
+        <div class="grid-app">
+            ${classes.map(c => `
+                <a class="card span-6" href="#/assessments?class=${c.id}" style="text-decoration:none; color:inherit; display:block">
+                    <h3 style="margin:0">${c.name}</h3>
+                    <p class="text-muted" style="margin:4px 0 12px">${c.level || ''}</p>
+                    <span class="chip">${c.class_students?.[0]?.count || 0} students</span>
+                    <span class="chip gold">${c.class_teachers?.[0]?.count || 0} teachers</span>
+                </a>
+            `).join('') || '<div class="alert alert-info">No classes available to you yet. Ask an admin to assign you to a class.</div>'}
+        </div>`;
+}
+
+/* --------------------------------------------------------------------- */
+async function renderStudentList(root, sb, profile, classId) {
+    const { data: cls } = await sb.from('classes').select('name, level').eq('id', classId).single();
+    const { data: roster } = await sb
+        .from('class_students')
+        .select('students(id, first_name, last_name, student_code)')
+        .eq('class_id', classId);
+    const ids = (roster || []).map(r => r.students?.id).filter(Boolean);
+
+    const { data: asses } = ids.length
+        ? await sb.from('assessments')
+            .select('student_id, overall_score, overall_grade, assessed_on')
+            .in('student_id', ids)
+            .eq('module_type', 'quran_recitation')
+            .order('assessed_on', { ascending: false })
+        : { data: [] };
+    const latest = new Map();
+    for (const a of (asses || [])) if (!latest.has(a.student_id)) latest.set(a.student_id, a);
+
+    const sortedRoster = (roster || []).slice().sort((a, b) =>
+        (a.students?.last_name || '').localeCompare(b.students?.last_name || ''));
+
+    root.innerHTML = `
+        <p style="margin-top:0"><a href="#/assessments">&larr; All classes</a> &middot;
+            <strong>${cls?.name || 'Class'}</strong>
+            ${cls?.level ? '<span class="chip">' + cls.level + '</span>' : ''}</p>
+        <p class="text-muted">Click a student to record a new assessment.</p>
+        <div class="card">
+            <table class="table">
+                <thead><tr><th>Code</th><th>Name</th><th>Last assessed</th><th>Latest grade</th><th></th></tr></thead>
+                <tbody>
+                    ${sortedRoster.map(r => {
+                        const s = r.students; if (!s) return '';
+                        const a = latest.get(s.id);
+                        return `<tr>
+                            <td>${s.student_code}</td>
+                            <td>${s.first_name} ${s.last_name}</td>
+                            <td>${a?.assessed_on || '—'}</td>
+                            <td>${a ? '<span class="chip">' + a.overall_grade + ' (' + a.overall_score + ')</span>' : '<span class="chip warn">not yet</span>'}</td>
+                            <td><a class="btn btn-primary" href="#/assessments?class=${classId}&student=${s.id}">Grade</a></td>
+                        </tr>`;
+                    }).join('') || '<tr><td colspan="5"><em>No students enrolled in this class.</em></td></tr>'}
+                </tbody>
+            </table>
+        </div>`;
+}
+
+/* --------------------------------------------------------------------- */
+async function renderForm(root, sb, profile, classId, studentId) {
+    const [{ data: student }, { data: cls }, { data: surahs }, { data: recent }] = await Promise.all([
+        sb.from('students').select('id, first_name, last_name, student_code').eq('id', studentId).single(),
+        sb.from('classes').select('id, name, level').eq('id', classId).single(),
+        sb.from('surahs').select('id, number, name_transliteration').order('number'),
+        sb.from('assessments')
+            .select('id, assessed_on, overall_score, overall_grade, quran_recitation_grades(fluency,makharij,tajweed,waqf,accuracy)')
+            .eq('student_id', studentId).eq('module_type', 'quran_recitation')
+            .order('assessed_on', { ascending: false }).limit(5),
     ]);
 
     root.innerHTML = `
+        <p style="margin-top:0"><a href="#/assessments">&larr; Classes</a> &middot;
+            <a href="#/assessments?class=${classId}">${cls?.name || 'Class'}</a> &middot;
+            <strong>${student?.first_name} ${student?.last_name}</strong>
+            <span class="chip">${student?.student_code}</span></p>
+
         <div class="grid-app">
             <div class="card span-12">
-                <h3>New assessment</h3>
+                <h3 style="margin-top:0">New Quran Recitation assessment</h3>
                 <form id="assess-form">
                     <div class="toolbar">
-                        <label class="field">Student
-                            <select name="student_id" required>
-                                ${(students.data || []).map(s => `<option value="${s.id}">${s.first_name} ${s.last_name} (${s.student_code})</option>`).join('')}
-                            </select>
-                        </label>
-                        <label class="field">Class
-                            <select name="class_id">
-                                <option value="">—</option>
-                                ${(classes.data || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
-                            </select>
-                        </label>
                         <label class="field">Date
                             <input type="date" name="assessed_on" value="${new Date().toISOString().slice(0, 10)}" required>
                         </label>
                         <label class="field">Surah
                             <select name="surah_id">
                                 <option value="">—</option>
-                                ${(surahs.data || []).map(s => `<option value="${s.id}">${s.number}. ${s.name_transliteration}</option>`).join('')}
+                                ${(surahs || []).map(s => `<option value="${s.id}">${s.number}. ${s.name_transliteration}</option>`).join('')}
                             </select>
                         </label>
-                        <label class="field">From ayah<input type="number" min="1" name="ayah_from"></label>
-                        <label class="field">To ayah<input   type="number" min="1" name="ayah_to"></label>
+                        <label class="field">Ayah from<input type="number" min="1" name="ayah_from"></label>
+                        <label class="field">Ayah to<input   type="number" min="1" name="ayah_to"></label>
                     </div>
 
                     <fieldset style="border:1px solid var(--border); border-radius: var(--radius); padding: 16px">
@@ -75,20 +162,31 @@ export async function render(root, { profile, supabase }) {
             </div>
 
             <div class="card span-6">
-                <h3>Marking guidelines</h3>
+                <h3 style="margin-top:0">Recent assessments</h3>
                 <table class="table">
-                    <thead><tr><th>Score</th><th>Meaning</th></tr></thead>
+                    <thead><tr><th>Date</th><th>F</th><th>M</th><th>T</th><th>W</th><th>A</th><th>Avg</th><th>Grade</th></tr></thead>
                     <tbody>
-                        ${Object.entries(GUIDELINES).map(([s, m]) => `<tr><td><strong>${s}</strong></td><td>${m}</td></tr>`).join('')}
+                        ${(recent || []).map(r => {
+                            const g = Array.isArray(r.quran_recitation_grades) ? r.quran_recitation_grades[0] : r.quran_recitation_grades;
+                            return `<tr>
+                                <td>${r.assessed_on}</td>
+                                <td>${g?.fluency  ?? ''}</td>
+                                <td>${g?.makharij ?? ''}</td>
+                                <td>${g?.tajweed  ?? ''}</td>
+                                <td>${g?.waqf     ?? ''}</td>
+                                <td>${g?.accuracy ?? ''}</td>
+                                <td><strong>${r.overall_score ?? ''}</strong></td>
+                                <td>${r.overall_grade ?? ''}</td>
+                            </tr>`;
+                        }).join('') || '<tr><td colspan="8"><em>No previous assessments.</em></td></tr>'}
                     </tbody>
                 </table>
             </div>
             <div class="card span-6">
-                <h3>Grade bands</h3>
+                <h3 style="margin-top:0">Marking guidelines</h3>
                 <table class="table">
-                    <thead><tr><th>Average</th><th>Label</th><th>GPA</th></tr></thead>
                     <tbody>
-                        ${GRADE_BANDS.map(b => `<tr><td>≥ ${b[0].toFixed(1)}</td><td><span class="chip" style="background:${b[3]};color:#fff">${b[1]}</span></td><td>${b[2]}</td></tr>`).join('')}
+                        ${Object.entries(GUIDELINES).map(([s, m]) => `<tr><td><strong>${s}</strong></td><td>${m}</td></tr>`).join('')}
                     </tbody>
                 </table>
             </div>
@@ -97,19 +195,15 @@ export async function render(root, { profile, supabase }) {
     const form = document.getElementById('assess-form');
     const summary = document.getElementById('live-summary');
 
-    // Pre-select class from query string if passed (e.g. ?class=3)
-    const params = new URLSearchParams((location.hash.split('?')[1]) || '');
-    if (params.get('class')) form.elements['class_id'].value = params.get('class');
-
     function currentScores() {
         const s = {};
         for (const c of CATEGORIES) s[c] = Number(form.elements[c].value || 0);
         return s;
     }
     function refreshSummary() {
-        const s   = currentScores();
+        const s = currentScores();
         const avg = calculateAverage(s);
-        const b   = resolveBand(avg);
+        const b = resolveBand(avg);
         summary.textContent = `Average: ${avg.toFixed(2)} · ${b.label}`;
         summary.style.background = b.color + '22';
         summary.style.color = b.color;
@@ -137,15 +231,28 @@ export async function render(root, { profile, supabase }) {
                 return;
             }
         }
-        const fd = new FormData(form);
         try {
-            const payload = Object.fromEntries(fd.entries());
+            const payload = Object.fromEntries(new FormData(form).entries());
+            payload.student_id = studentId;
+            payload.class_id   = classId;
             payload.teacher_id = profile.teacher_id;
+
+            // Admin without teacher profile? Borrow the lead teacher of the class.
             if (!payload.teacher_id) {
-                alertBox.innerHTML = `<div class="alert alert-danger">Your account isn't linked to a teacher profile. Ask an admin.</div>`;
-                return;
+                const { data: leadOrAny } = await sb
+                    .from('class_teachers')
+                    .select('teacher_id, is_lead')
+                    .eq('class_id', classId)
+                    .order('is_lead', { ascending: false })
+                    .limit(1);
+                payload.teacher_id = leadOrAny?.[0]?.teacher_id;
+                if (!payload.teacher_id) {
+                    alertBox.innerHTML = `<div class="alert alert-danger">This class has no teacher assigned. Assign one in the Classes screen first.</div>`;
+                    return;
+                }
             }
-            const id = await recordAssessment(supabase, payload);
+
+            const id = await recordAssessment(sb, payload);
             await audit('quran_recitation.assessed', 'assessment', id);
 
             const scores = currentScores();
@@ -154,7 +261,7 @@ export async function render(root, { profile, supabase }) {
             const recs = generateRecommendations(scores, avg);
             alertBox.innerHTML = `
                 <div class="alert alert-success">
-                    Saved (id ${id}). Average <strong>${avg.toFixed(2)}</strong>.
+                    Saved. Average <strong>${avg.toFixed(2)}</strong>.
                     ${weak.length ? '<br><strong>Weaknesses:</strong> ' + weak.join(', ') : ''}
                     ${recs.length ? '<br><strong>Recommendations:</strong><ul style="margin:6px 0 0 18px">' + recs.map(r => `<li>${r}</li>`).join('') + '</ul>' : ''}
                 </div>`;
