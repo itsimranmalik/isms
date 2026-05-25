@@ -52,11 +52,18 @@ async function renderClassList(root, sb, profile) {
 
 /* --------------------------------------------------------------------- */
 async function renderStudentList(root, sb, profile, classId) {
+    const isAdmin = profile.role === 'admin';
     const { data: cls } = await sb.from('classes').select('name, level').eq('id', classId).single();
-    const { data: roster } = await sb
-        .from('class_students')
-        .select('students(id, first_name, last_name, student_code)')
+
+    // Teachers only see students whose primary_teacher_id is them.
+    // Admins see all enrolled.
+    let query = sb.from('class_students')
+        .select('students(id, first_name, last_name, student_code), primary_teacher_id')
         .eq('class_id', classId);
+    if (!isAdmin && profile.teacher_id) {
+        query = query.eq('primary_teacher_id', profile.teacher_id);
+    }
+    const { data: roster } = await query;
     const ids = (roster || []).map(r => r.students?.id).filter(Boolean);
 
     const { data: asses } = ids.length
@@ -76,7 +83,9 @@ async function renderStudentList(root, sb, profile, classId) {
         <p style="margin-top:0"><a href="#/assessments">&larr; All classes</a> &middot;
             <strong>${cls?.name || 'Class'}</strong>
             ${cls?.level ? '<span class="chip">' + cls.level + '</span>' : ''}</p>
-        <p class="text-muted">Click a student to record a new assessment.</p>
+        <p class="text-muted">${isAdmin
+            ? 'Click a student to record a new assessment. (You see all enrolled students.)'
+            : 'Showing only students assigned to you as their primary teacher. Ask the admin (or use the Classes screen) to assign more.'}</p>
         <div class="card">
             <table class="table">
                 <thead><tr><th>Code</th><th>Name</th><th>Last assessed</th><th>Latest grade</th><th></th></tr></thead>

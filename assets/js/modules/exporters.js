@@ -50,16 +50,42 @@ export async function exportStudentReportPdf({ student, recits, memoSummary, dua
     doc.text(`Generated: ${new Date().toISOString().slice(0,10)}`, W - 14, 46, { align: 'right' });
 
     // Quran Recitation table
+    // Build assessment rows with a per-grading trend vs the previous assessment.
+    // recits is in chronological asc order (oldest -> newest). We compute the delta
+    // and then reverse so the PDF shows newest first.
+    const recitsAsc = (recits || []).slice();
+    const enriched = recitsAsc.map((r, i) => {
+        const g = r.quran_recitation_grades?.[0] || r.quran_recitation_grades || {};
+        const prev = recitsAsc[i - 1];
+        let trend = i === 0 ? 'first' : '';
+        if (prev) {
+            const diff = Number(r.overall_score || 0) - Number(prev.overall_score || 0);
+            if (diff > 0.05)       trend = '+' + diff.toFixed(2);
+            else if (diff < -0.05) trend = diff.toFixed(2);
+            else                   trend = 'flat';
+        }
+        return { r, g, trend };
+    }).reverse();   // newest first in the printed table
+
     doc.autoTable({
         startY: 68,
-        head: [['Date', 'Fluency', 'Makharij', 'Tajweed', 'Waqf', 'Accuracy', 'Average', 'Grade']],
-        body: (recits || []).map(r => {
-            const g = r.quran_recitation_grades?.[0] || r.quran_recitation_grades || {};
-            return [r.assessed_on, g.fluency ?? '', g.makharij ?? '', g.tajweed ?? '', g.waqf ?? '', g.accuracy ?? '', r.overall_score ?? '', r.overall_grade ?? ''];
-        }),
+        head: [['Date', 'Fluency', 'Makharij', 'Tajweed', 'Waqf', 'Accuracy', 'Average', 'Grade', 'Trend']],
+        body: enriched.map(({ r, g, trend }) => [
+            r.assessed_on,
+            g.fluency ?? '', g.makharij ?? '', g.tajweed ?? '', g.waqf ?? '', g.accuracy ?? '',
+            r.overall_score ?? '', r.overall_grade ?? '', trend,
+        ]),
         headStyles: { fillColor: [5, 102, 86] },
         styles: { fontSize: 9 },
         margin: { left: 14, right: 14 },
+        // Colour the trend cell: green for improvement, red for drop, grey for flat/first.
+        didParseCell: (data) => {
+            if (data.section !== 'body' || data.column.index !== 8) return;
+            const v = String(data.cell.raw || '');
+            if (v.startsWith('+'))       data.cell.styles.textColor = [5, 102, 86];
+            else if (v.startsWith('-'))  data.cell.styles.textColor = [220, 38, 38];
+            else                         data.cell.styles.textColor = [100, 116, 139];
+        },
         didDrawPage: () => {
             doc.setFontSize(11); doc.setTextColor(5, 102, 86);
             doc.text('Quran Recitation', 14, doc.autoTable.previous?.startY ? doc.autoTable.previous.startY - 4 : 64);
