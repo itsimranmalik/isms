@@ -7,7 +7,7 @@ through everything you need to run the day-to-day.
 
 ## 1. Signing in
 
-1. Open the site (your `*.pages.dev` URL or your custom domain).
+1. Open the site (e.g. `https://itsimranmalik.github.io/isms/` or your custom domain).
 2. Top-right corner: **Sign in**.
 3. Type your **username** *or* **email** in the Username field. Real emails and
    short usernames both work.
