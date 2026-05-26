@@ -18,6 +18,7 @@ const NAV_BY_ROLE = {
         { hash: 'attendance',   label: 'Attendance',    icon: '✅' },
         { grp: 'Admin' },
         { hash: 'reports',      label: 'Reports',       icon: '📄' },
+        { hash: 'admins',       label: 'Admins',        icon: '🛡️' },
         { hash: 'audit',        label: 'Audit log',     icon: '📜' },
         { hash: 'settings',     label: 'Settings',      icon: '⚙️' },
         { grp: 'You' },
