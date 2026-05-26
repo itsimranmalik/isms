@@ -3,28 +3,84 @@
 body[data-app="1"] {
     margin: 0;
     display: grid;
-    grid-template-columns: 260px 1fr;
+    grid-template-columns: 280px 1fr;
     min-height: 100vh;
     background: var(--bg);
 }
 
+/* Sidebar — Islamic-styled with subtle geometric backdrop and gold accents */
 .app-sidebar {
-    background: var(--green-900);
+    background:
+        linear-gradient(180deg, var(--green-900) 0%, #022820 100%);
     color: #E5E7EB;
-    padding: 20px;
+    padding: 18px 16px;
     position: sticky; top: 0; height: 100vh;
-    display: flex; flex-direction: column; gap: 18px;
+    display: flex; flex-direction: column; gap: 14px;
     overflow-y: auto;
+    border-right: 1px solid rgba(212,175,55,.15);
+    position: relative;
 }
-.app-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; color: #fff; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,.1); }
-.app-brand .crescent { color: var(--gold-400); font-size: 22px; }
-.app-nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
-.app-nav a { color: #cbd5e1; padding: 10px 12px; border-radius: 8px; font-size: 14px; display: flex; gap: 10px; align-items: center; }
-.app-nav a:hover { background: rgba(255,255,255,.06); color: #fff; text-decoration: none; }
-.app-nav a.active { background: var(--green-700); color: #fff; }
-.app-nav .grp { font-size: 11px; color: rgba(255,255,255,.45); text-transform: uppercase; letter-spacing: .08em; padding: 14px 12px 4px; }
-.app-user { font-size: 13px; padding: 12px; border-top: 1px solid rgba(255,255,255,.1); color: #cbd5e1; }
-.app-user .who { color: #fff; font-weight: 600; }
+/* Geometric ornamental backdrop — very subtle 8-point star pattern */
+.app-sidebar::before {
+    content: ""; position: absolute; inset: 0;
+    background-image:
+        radial-gradient(circle at 12px 12px, rgba(212,175,55,.07) 1px, transparent 2px),
+        radial-gradient(circle at 36px 36px, rgba(212,175,55,.04) 1px, transparent 2px);
+    background-size: 48px 48px;
+    pointer-events: none; opacity: .5;
+}
+.app-sidebar > * { position: relative; z-index: 1; }
+
+.app-brand {
+    display: flex; align-items: center; gap: 12px;
+    font-weight: 700; font-size: 20px; color: #fff;
+    padding: 4px 8px 14px;
+    border-bottom: 1px solid rgba(212,175,55,.25);
+    position: relative;
+}
+.app-brand .crescent { color: var(--gold-400); font-size: 30px; line-height: 1; }
+/* Small gold tassel under the brand */
+.app-brand::after {
+    content: "❋";
+    position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%);
+    color: var(--gold-400); font-size: 14px; background: var(--green-900);
+    padding: 0 8px;
+}
+
+.app-nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.app-nav a {
+    color: #d1d5db; padding: 12px 14px; border-radius: 10px;
+    font-size: 15px; display: flex; gap: 14px; align-items: center;
+    text-decoration: none; transition: background .12s, transform .05s;
+}
+.app-nav a > span:first-child {     /* the icon glyph */
+    font-size: 22px; line-height: 1; width: 28px; text-align: center;
+    filter: drop-shadow(0 1px 1px rgba(0,0,0,.4));
+}
+.app-nav a:hover { background: rgba(212,175,55,.08); color: #fff; }
+.app-nav a:hover > span:first-child { transform: scale(1.08); }
+.app-nav a.active {
+    background: var(--green-700); color: #fff;
+    box-shadow: 0 0 0 1px rgba(212,175,55,.4) inset;
+}
+.app-nav a.active > span:first-child { color: var(--gold-300); }
+
+.app-nav .grp {
+    font-size: 11px; color: var(--gold-400); text-transform: uppercase;
+    letter-spacing: .12em; padding: 16px 14px 6px;
+    display: flex; align-items: center; gap: 8px;
+}
+.app-nav .grp::before, .app-nav .grp::after {
+    content: ""; flex: 1; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(212,175,55,.25), transparent);
+}
+
+.app-user {
+    font-size: 13px; padding: 14px 12px;
+    border-top: 1px solid rgba(212,175,55,.2);
+    color: #cbd5e1;
+}
+.app-user .who { color: #fff; font-weight: 600; font-size: 14px; }
 
 .app-main { display: flex; flex-direction: column; min-width: 0; }
 .app-topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 10; }
