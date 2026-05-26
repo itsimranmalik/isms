@@ -1,4 +1,4 @@
-/* Duas tracker — daily + namaz, oral assessment */
+/* Duas tracker — daily + namaz with class filter. */
 import { audit } from '../supabase-client.js';
 export const title = 'Duas';
 
@@ -8,18 +8,32 @@ export async function render(root, { profile, supabase }) {
         root.innerHTML = '<div class="alert alert-danger">Only staff can grade duas.</div>';
         return;
     }
-    const [{ data: students }, { data: duas }] = await Promise.all([
-        supabase.from('students').select('id, first_name, last_name').order('last_name'),
-        supabase.from('duas').select('*').order('category').order('sort_order'),
-    ]);
+    const isAdmin = profile.role === 'admin';
+
+    let classes;
+    if (isAdmin) {
+        const { data } = await supabase.from('classes').select('id, name').order('name');
+        classes = data || [];
+    } else {
+        const { data } = await supabase.from('class_teachers')
+            .select('classes(id, name)')
+            .eq('teacher_id', profile.teacher_id);
+        classes = (data || []).map(r => r.classes).filter(Boolean);
+    }
+
+    const { data: duas } = await supabase.from('duas').select('*').order('category').order('sort_order');
 
     root.innerHTML = `
         <div class="card">
             <div class="toolbar">
-                <label class="field">Student
-                    <select id="dua-student">
-                        ${(students || []).map(s => `<option value="${s.id}">${s.first_name} ${s.last_name}</option>`).join('')}
+                <label class="field">Class
+                    <select id="dua-class">
+                        <option value="">${isAdmin ? 'All classes' : '—'}</option>
+                        ${classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
                     </select>
+                </label>
+                <label class="field">Student
+                    <select id="dua-student"><option value="">Pick a class first…</option></select>
                 </label>
                 <label class="field">Category
                     <select id="dua-cat">
@@ -30,18 +44,49 @@ export async function render(root, { profile, supabase }) {
                 </label>
                 <div id="dua-summary" style="margin-left:auto"></div>
             </div>
-            <div id="dua-list"></div>
+            <div id="dua-list"><em>Pick a student.</em></div>
         </div>`;
 
+    const classSel = document.getElementById('dua-class');
     const studentSel = document.getElementById('dua-student');
-    const catSel     = document.getElementById('dua-cat');
-    studentSel.addEventListener('change', load);
-    catSel.addEventListener('change', load);
-    if (students?.length) load();
+    const catSel = document.getElementById('dua-cat');
+
+    classSel.addEventListener('change', loadStudents);
+    studentSel.addEventListener('change', () => { if (studentSel.value) load(); else clearList(); });
+    catSel.addEventListener('change', () => { if (studentSel.value) load(); });
+
+    if (!isAdmin && classes.length === 1) classSel.value = String(classes[0].id);
+    loadStudents();
+
+    async function loadStudents() {
+        const classId = classSel.value ? Number(classSel.value) : null;
+        let query = supabase.from('class_students')
+            .select('student_id, primary_teacher_id, students(id, first_name, last_name, student_code)');
+        if (classId) query = query.eq('class_id', classId);
+        if (!isAdmin && profile.teacher_id) query = query.eq('primary_teacher_id', profile.teacher_id);
+        const { data: roster } = await query;
+        const seen = new Set();
+        const studs = [];
+        for (const r of (roster || [])) {
+            const s = r.students;
+            if (s && !seen.has(s.id)) { seen.add(s.id); studs.push(s); }
+        }
+        studs.sort((a, b) => (a.last_name || '').localeCompare(b.last_name || ''));
+        studentSel.innerHTML = '<option value="">— pick a student —</option>' +
+            studs.map(s => `<option value="${s.id}">${s.first_name} ${s.last_name} (${s.student_code})</option>`).join('');
+        clearList();
+    }
+
+    function clearList() {
+        document.getElementById('dua-list').innerHTML = '<em>Pick a student.</em>';
+        document.getElementById('dua-summary').innerHTML = '';
+    }
 
     async function load() {
         const studentId = Number(studentSel.value);
         const cat       = catSel.value;
+        if (!studentId) return clearList();
+
         const { data: prog } = await supabase
             .from('dua_progress')
             .select('dua_id, status, score, tajweed_verified, assessed_on, comments')
@@ -49,7 +94,6 @@ export async function render(root, { profile, supabase }) {
         const map = new Map((prog || []).map(p => [p.dua_id, p]));
 
         const filtered = cat ? duas.filter(d => d.category === cat) : duas;
-        // Group by category
         const groups = {};
         for (const d of filtered) (groups[d.category] ||= []).push(d);
 
@@ -62,7 +106,6 @@ export async function render(root, { profile, supabase }) {
             return `
                 <div class="card" style="margin-top: 16px">
                     <h3 style="text-transform:capitalize">${category} — ${completed}/${items.length} (${pct}%)</h3>
-                    <div class="progress" style="margin-bottom:12px"><span style="width:${pct}%"></span></div>
                     <table class="table">
                         <thead><tr><th>Title</th><th>Arabic</th><th>Status</th><th>Score</th><th>Tajweed?</th><th></th></tr></thead>
                         <tbody>

@@ -1,4 +1,5 @@
-/* Memorisation tracker — teacher/admin view */
+/* Memorisation tracker — teacher/admin view.
+ * Adds class filter; for teachers, students restricted to their primary roster. */
 import { audit } from '../supabase-client.js';
 export const title = 'Memorisation';
 
@@ -8,18 +9,35 @@ export async function render(root, { profile, supabase }) {
         root.innerHTML = '<div class="alert alert-danger">Only staff can update memorisation.</div>';
         return;
     }
-    const [{ data: students }, { data: surahs }] = await Promise.all([
-        supabase.from('students').select('id, first_name, last_name').order('last_name'),
-        supabase.from('surahs').select('id, number, name_transliteration, total_ayahs').order('number'),
-    ]);
+    const isAdmin = profile.role === 'admin';
+
+    // Classes the user can see
+    let classes;
+    if (isAdmin) {
+        const { data } = await supabase.from('classes')
+            .select('id, name, level').order('name');
+        classes = data || [];
+    } else {
+        const { data } = await supabase.from('class_teachers')
+            .select('classes(id, name, level)')
+            .eq('teacher_id', profile.teacher_id);
+        classes = (data || []).map(r => r.classes).filter(Boolean);
+    }
+
+    const { data: surahs } = await supabase.from('surahs')
+        .select('id, number, name_transliteration, total_ayahs').order('number');
 
     root.innerHTML = `
         <div class="card">
             <div class="toolbar">
-                <label class="field">Student
-                    <select id="memo-student">
-                        ${(students || []).map(s => `<option value="${s.id}">${s.first_name} ${s.last_name}</option>`).join('')}
+                <label class="field">Class
+                    <select id="memo-class">
+                        <option value="">${isAdmin ? 'All classes' : '—'}</option>
+                        ${classes.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
                     </select>
+                </label>
+                <label class="field">Student
+                    <select id="memo-student"><option value="">Pick a class first…</option></select>
                 </label>
                 <div id="memo-summary" style="margin-left:auto"></div>
             </div>
@@ -29,9 +47,45 @@ export async function render(root, { profile, supabase }) {
             </table>
         </div>`;
 
-    const sel = document.getElementById('memo-student');
-    sel.addEventListener('change', () => load(Number(sel.value)));
-    if (students?.length) load(Number(sel.value));
+    const classSel   = document.getElementById('memo-class');
+    const studentSel = document.getElementById('memo-student');
+    classSel.addEventListener('change', loadStudents);
+    studentSel.addEventListener('change', () => {
+        if (studentSel.value) load(Number(studentSel.value));
+        else clearTable();
+    });
+
+    // For teachers with one class, pre-select it
+    if (!isAdmin && classes.length === 1) {
+        classSel.value = String(classes[0].id);
+    }
+    loadStudents();
+
+    async function loadStudents() {
+        const classId = classSel.value ? Number(classSel.value) : null;
+        let query = supabase.from('class_students')
+            .select('student_id, primary_teacher_id, students(id, first_name, last_name, student_code)');
+        if (classId) query = query.eq('class_id', classId);
+        if (!isAdmin && profile.teacher_id) query = query.eq('primary_teacher_id', profile.teacher_id);
+        const { data: roster } = await query;
+        // unique students (a student might be in multiple classes)
+        const seen = new Set();
+        const studs = [];
+        for (const r of (roster || [])) {
+            const s = r.students;
+            if (s && !seen.has(s.id)) { seen.add(s.id); studs.push(s); }
+        }
+        studs.sort((a, b) => (a.last_name || '').localeCompare(b.last_name || ''));
+        studentSel.innerHTML = '<option value="">— pick a student —</option>' +
+            studs.map(s => `<option value="${s.id}">${s.first_name} ${s.last_name} (${s.student_code})</option>`).join('');
+        clearTable();
+    }
+
+    function clearTable() {
+        document.getElementById('memo-summary').innerHTML = '';
+        root.querySelector('#memo-table tbody').innerHTML =
+            '<tr><td colspan="7"><em>Pick a student.</em></td></tr>';
+    }
 
     async function load(studentId) {
         const { data: prog } = await supabase
@@ -66,8 +120,8 @@ export async function render(root, { profile, supabase }) {
         tbody.querySelectorAll('.save-btn').forEach(btn => btn.addEventListener('click', async ev => {
             const tr = ev.target.closest('tr');
             const surahId = Number(tr.dataset.surah);
-            const ayahs = Number(tr.querySelector('[data-f=ayahs_memorised]').value);
-            const status = tr.querySelector('[data-f=status]').value;
+            const ayahs   = Number(tr.querySelector('[data-f=ayahs_memorised]').value);
+            const status  = tr.querySelector('[data-f=status]').value;
             const quality = Number(tr.querySelector('[data-f=quality_score]').value);
             const row = {
                 student_id:      studentId,

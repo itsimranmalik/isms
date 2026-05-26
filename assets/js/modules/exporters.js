@@ -153,3 +153,73 @@ export function exportClassCsv({ className, rows }) {
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
+
+/* ============================================================
+ * Class-level PDFs for Memorisation, Daily Duas, Namaz Duas.
+ * All take a `rows` array shaped per-module and emit a tidy
+ * landscape table with school header.
+ * ============================================================ */
+
+function pdfHeader(doc, schoolName, logoUrl, subtitle) {
+    if (logoUrl) { try { doc.addImage(logoUrl, 'PNG', 14, 12, 22, 22); } catch (e) {} }
+    const W = doc.internal.pageSize.getWidth();
+    doc.setFontSize(18); doc.setTextColor(5, 102, 86);
+    doc.text(schoolName || 'Madrasa', W / 2, 22, { align: 'center' });
+    doc.setFontSize(12); doc.setTextColor(80);
+    doc.text(subtitle, W / 2, 30, { align: 'center' });
+    doc.setDrawColor(212, 175, 55); doc.line(14, 36, W - 14, 36);
+}
+
+/* ----- Memorisation class PDF ------------------------------------- */
+export async function exportClassMemorisationPdf({ className, rows, schoolName, logoUrl }) {
+    await ensureJsPDF();
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
+    pdfHeader(doc, schoolName, logoUrl, `Class: ${className} — Memorisation`);
+    doc.setFontSize(10); doc.setTextColor(80);
+    doc.text(`Generated: ${new Date().toISOString().slice(0,10)}`, 14, 44);
+
+    doc.autoTable({
+        startY: 48,
+        head: [['Code', 'Student', 'Ayahs memorised', '% of Quran', 'Surahs complete']],
+        body: rows.map(r => [r.student_code, `${r.first_name} ${r.last_name}`, r.ayahs, `${r.percent}%`, r.surahs_complete]),
+        headStyles: { fillColor: [5, 102, 86] },
+        styles: { fontSize: 10 },
+        margin: { left: 14, right: 14 },
+    });
+
+    doc.save(`class-${className.replace(/\s+/g, '-').toLowerCase()}-memorisation.pdf`);
+}
+
+/* ----- Duas class PDF (category-aware) ---------------------------- */
+export async function exportClassDuasPdf({ className, category, rows, schoolName, logoUrl }) {
+    // category = 'daily' | 'namaz'
+    await ensureJsPDF();
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
+    const label = category === 'namaz' ? 'Namaz Duas' : 'Daily Duas';
+    pdfHeader(doc, schoolName, logoUrl, `Class: ${className} — ${label}`);
+    doc.setFontSize(10); doc.setTextColor(80);
+    doc.text(`Generated: ${new Date().toISOString().slice(0,10)}`, 14, 44);
+
+    doc.autoTable({
+        startY: 48,
+        head: [['Code', 'Student', 'Completed', 'Total', 'Progress %']],
+        body: rows.map(r => [r.student_code, `${r.first_name} ${r.last_name}`, r.completed, r.total, `${r.percent}%`]),
+        headStyles: { fillColor: [5, 102, 86] },
+        styles: { fontSize: 10 },
+        margin: { left: 14, right: 14 },
+        didParseCell: (data) => {
+            // colour the percent cell green if >= 75, amber if 25-74, red if < 25
+            if (data.section !== 'body' || data.column.index !== 4) return;
+            const n = Number(String(data.cell.raw || '').replace('%', ''));
+            if (!isNaN(n)) {
+                if (n >= 75)      data.cell.styles.textColor = [5, 102, 86];
+                else if (n >= 25) data.cell.styles.textColor = [245, 158, 11];
+                else              data.cell.styles.textColor = [220, 38, 38];
+            }
+        },
+    });
+
+    doc.save(`class-${className.replace(/\s+/g, '-').toLowerCase()}-${category}-duas.pdf`);
+}
