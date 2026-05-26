@@ -23,6 +23,7 @@ const NAV_BY_ROLE = {
         { hash: 'settings',     label: 'Settings',      icon: '⚙️' },
         { grp: 'You' },
         { hash: 'account',      label: 'My Account',    icon: '👤' },
+        { hash: 'help',         label: 'Help',          icon: '📘' },
     ],
     teacher: [
         { hash: 'dashboard',    label: 'Dashboard',     icon: '📊' },
@@ -34,6 +35,7 @@ const NAV_BY_ROLE = {
         { hash: 'attendance',   label: 'Attendance',    icon: '✅' },
         { hash: 'reports',      label: 'Reports',       icon: '📄' },
         { hash: 'account',      label: 'My Account',    icon: '👤' },
+        { hash: 'help',         label: 'Help',          icon: '📘' },
     ],
     student: [
         { hash: 'dashboard',    label: 'My Dashboard',  icon: '📊' },
@@ -43,10 +45,12 @@ const NAV_BY_ROLE = {
         { hash: 'my-attendance',label: 'Attendance',    icon: '✅' },
         { hash: 'reports',      label: 'My Reports',    icon: '📄' },
         { hash: 'account',      label: 'My Account',    icon: '👤' },
+        { hash: 'help',         label: 'Help',          icon: '📘' },
     ],
     parent: [
         { hash: 'dashboard',    label: 'Overview',      icon: '📊' },
         { hash: 'account',      label: 'My Account',    icon: '👤' },
+        { hash: 'help',         label: 'Help',          icon: '📘' },
     ],
 };
 
