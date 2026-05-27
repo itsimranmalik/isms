@@ -2,6 +2,7 @@
  * Each enrolment can have a "primary teacher" so multiple teachers in a
  * class can split students between them. */
 import { audit } from '../supabase-client.js';
+import { toast } from '../modules/toast.js';
 export const title = 'Classes';
 
 export async function render(root, { profile, supabase }) {
@@ -87,8 +88,9 @@ export async function render(root, { profile, supabase }) {
     async function del(id) {
         if (!confirm('Delete this class? Enrolments and assignments will be removed.')) return;
         const { error } = await supabase.from('classes').delete().eq('id', id);
-        if (error) return alert(error.message);
+        if (error) { toast.error(error.message); return; }
         await audit('class.delete', 'class', id);
+        toast.success('Class deleted.');
         load();
     }
 
@@ -168,13 +170,15 @@ export async function render(root, { profile, supabase }) {
                 if (!sid) return;
                 const { error } = await supabase.from('class_students')
                     .insert({ class_id: classId, student_id: sid, primary_teacher_id: tch });
-                if (error) return alert(error.message);
+                if (error) { toast.error(error.message); return; }
                 await audit('class.enrol', 'class', classId, { student_id: sid, primary_teacher_id: tch });
+                toast.success('Student enrolled');
                 showDetail(classId);
             });
             detail.querySelectorAll('.unenrol-btn').forEach(b => b.addEventListener('click', async () => {
                 const { error } = await supabase.from('class_students').delete().eq('class_id', classId).eq('student_id', b.dataset.id);
-                if (error) return alert(error.message);
+                if (error) { toast.error(error.message); return; }
+                toast.success('Student unenrolled');
                 showDetail(classId);
             }));
             detail.querySelectorAll('.primary-tch-sel').forEach(sel => sel.addEventListener('change', async () => {
@@ -183,8 +187,9 @@ export async function render(root, { profile, supabase }) {
                 const { error } = await supabase.from('class_students')
                     .update({ primary_teacher_id: newT })
                     .eq('class_id', classId).eq('student_id', sid);
-                if (error) { alert(error.message); return; }
+                if (error) { toast.error(error.message); return; }
                 await audit('class.reassign', 'class_students', null, { class_id: classId, student_id: sid, primary_teacher_id: newT });
+                toast.success('Primary teacher updated');
             }));
         }
         if (isAdmin) {
@@ -193,13 +198,15 @@ export async function render(root, { profile, supabase }) {
                 const lead = document.getElementById('assign-lead').checked;
                 if (!tid) return;
                 const { error } = await supabase.from('class_teachers').insert({ class_id: classId, teacher_id: tid, is_lead: lead });
-                if (error) return alert(error.message);
+                if (error) { toast.error(error.message); return; }
                 await audit('class.assign_teacher', 'class', classId, { teacher_id: tid, lead });
+                toast.success('Teacher assigned');
                 showDetail(classId);
             });
             detail.querySelectorAll('.unassign-btn').forEach(b => b.addEventListener('click', async () => {
                 const { error } = await supabase.from('class_teachers').delete().eq('class_id', classId).eq('teacher_id', b.dataset.id);
-                if (error) return alert(error.message);
+                if (error) { toast.error(error.message); return; }
+                toast.success('Teacher removed');
                 showDetail(classId);
             }));
         }
@@ -215,8 +222,9 @@ export async function render(root, { profile, supabase }) {
         let res;
         if (id) res = await supabase.from('classes').update(payload).eq('id', id);
         else    res = await supabase.from('classes').insert(payload);
-        if (res.error) { alert(res.error.message); return; }
+        if (res.error) { toast.error(res.error.message); return; }
         await audit(id ? 'class.update' : 'class.create', 'class', id || null, payload);
+        toast.success(id ? 'Class updated' : 'Class created');
         dlg.close(); load();
     });
 

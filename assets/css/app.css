@@ -128,3 +128,53 @@ body[data-app="1"] {
     .app-sidebar.open { left: 0; }
     .app-burger { display: block; }
 }
+
+/* ===================================================================
+ * Mobile polish (≤ 800px). Horizontal scroll on wide tables, tighter
+ * paddings, condensed buttons, KPIs in 2-column grid.
+ * =================================================================== */
+@media (max-width: 800px) {
+    /* The .card already exists; make any table inside it horizontally
+     * scrollable so phones can swipe sideways to see all columns. */
+    .card { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .card .table { min-width: 560px; }            /* keep columns readable */
+
+    .table { font-size: 13px; }
+    .table th, .table td { padding: 8px 10px; }
+
+    /* Stack Edit/Delete buttons inside narrow action cells */
+    .table td .btn { display: block; width: 100%; margin-top: 4px; padding: 6px 8px; font-size: 12px; }
+    .table td .btn:first-child { margin-top: 0; }
+
+    /* General button sizing on small screens */
+    .btn { padding: 8px 12px; font-size: 14px; }
+    .btn-lg { padding: 10px 16px; font-size: 15px; }
+
+    /* KPI cards: two per row on phones */
+    .kpis { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .kpi { padding: 12px; }
+    .kpi .value { font-size: 22px; }
+
+    /* App page padding tighter on phones */
+    .app-page { padding: 16px 12px; }
+    .app-topbar { padding: 10px 14px; gap: 8px; }
+    .app-topbar h2 { font-size: 16px !important; }
+    .app-topbar .btn { padding: 6px 10px; font-size: 13px; }
+
+    /* Toolbar wraps and gaps tighten */
+    .toolbar { gap: 8px; flex-wrap: wrap; }
+    .field input, .field select, .field textarea { font-size: 14px; }
+
+    /* Grid-app: every span collapses to full width on phones */
+    .grid-app .card { grid-column: 1 / -1 !important; }
+
+    /* Sidebar slightly narrower when open on mobile */
+    .app-sidebar { width: 250px; }
+}
+
+/* Print-friendly Help view (works on any screen) */
+@media print {
+    .app-sidebar, .app-topbar, #ism-toast-host { display: none !important; }
+    .app-page { padding: 0; }
+    .card { box-shadow: none; border: 1px solid #ddd; }
+}

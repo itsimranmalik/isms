@@ -1,6 +1,7 @@
 /* Teachers CRUD — with admin-only "create login" via Edge Function */
 import { audit } from '../supabase-client.js';
 import { createLogin } from '../modules/admin-users.js';
+import { toast } from '../modules/toast.js';
 export const title = 'Teachers';
 
 export async function render(root, { profile, supabase }) {
@@ -127,8 +128,9 @@ export async function render(root, { profile, supabase }) {
     async function del(id) {
         if (!confirm('Delete this teacher? Their linked login (if any) will remain in Supabase Auth — remove it manually if needed.')) return;
         const { error } = await supabase.from('teachers').delete().eq('id', id);
-        if (error) return alert(error.message);
+        if (error) { toast.error(error.message); return; }
         await audit('teacher.delete', 'teacher', id);
+        toast.success('Teacher deleted.');
         load();
     }
 
@@ -173,13 +175,16 @@ export async function render(root, { profile, supabase }) {
                     teacher_id: Number(teacherId),
                 });
                 alertBox.innerHTML = `<div class="alert alert-success">Teacher saved and login created. They can sign in with username <strong>${loginUsername}</strong>.</div>`;
+                toast.success('Teacher saved and login created');
                 setTimeout(() => { dlg.close(); load(); }, 1500);
             } else {
+                toast.success(id ? 'Teacher updated' : 'Teacher created');
                 dlg.close();
                 load();
             }
         } catch (err) {
             alertBox.innerHTML = `<div class="alert alert-danger">${err.message || 'Save failed.'}</div>`;
+            toast.error(err.message || 'Save failed');
         } finally {
             saveBtn.disabled = false;
             saveBtn.textContent = 'Save';

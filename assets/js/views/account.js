@@ -1,6 +1,7 @@
 /* Account view: profile info + change password (all roles). */
 import { emailToDisplayName } from '../modules/admin-users.js';
 import { audit } from '../supabase-client.js';
+import { toast } from '../modules/toast.js';
 
 export const title = 'My Account';
 
@@ -71,9 +72,11 @@ export async function render(root, { profile, supabase }) {
             if (error) throw error;
             await audit('account.password_change', 'user', null, {});
             alert.innerHTML = '<div class="alert alert-success">Password updated. Use it the next time you sign in.</div>';
+            toast.success('Password updated');
             form.reset();
         } catch (err) {
             alert.innerHTML = '<div class="alert alert-danger">' + (err.message || 'Update failed.') + '</div>';
+            toast.error(err.message || 'Update failed');
         } finally {
             btn.disabled = false; btn.textContent = 'Update password';
         }

@@ -1,6 +1,7 @@
 /* Students CRUD — with admin-only "create login" via Edge Function */
 import { audit } from '../supabase-client.js';
 import { createLogin } from '../modules/admin-users.js';
+import { toast } from '../modules/toast.js';
 export const title = 'Students';
 
 export async function render(root, { profile, supabase }) {
@@ -123,8 +124,9 @@ export async function render(root, { profile, supabase }) {
     async function del(id) {
         if (!confirm('Delete this student?')) return;
         const { error } = await supabase.from('students').delete().eq('id', id);
-        if (error) return alert(error.message);
+        if (error) { toast.error(error.message); return; }
         await audit('student.delete', 'student', id);
+        toast.success('Student deleted.');
         load();
     }
 
@@ -168,13 +170,16 @@ export async function render(root, { profile, supabase }) {
                     student_id: Number(studentId),
                 });
                 alertBox.innerHTML = `<div class="alert alert-success">Student saved and login created. They can sign in with username <strong>${loginUsername}</strong>.</div>`;
+                toast.success('Student saved and login created');
                 setTimeout(() => { dlg.close(); load(); }, 1500);
             } else {
+                toast.success(id ? 'Student updated' : 'Student created');
                 dlg.close();
                 load();
             }
         } catch (err) {
             alertBox.innerHTML = `<div class="alert alert-danger">${err.message || 'Save failed.'}</div>`;
+            toast.error(err.message || 'Save failed');
         } finally {
             saveBtn.disabled = false;
             saveBtn.textContent = 'Save';

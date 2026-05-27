@@ -1,4 +1,5 @@
 /* Settings (admin) */
+import { toast } from '../modules/toast.js';
 export const title = 'Settings';
 
 export async function render(root, { profile, supabase }) {
@@ -39,5 +40,7 @@ export async function render(root, { profile, supabase }) {
         document.getElementById('settings-alert').innerHTML = error
             ? `<div class="alert alert-danger">${error.message}</div>`
             : '<div class="alert alert-success">Saved.</div>';
+        if (error) toast.error(error.message);
+        else       toast.success('Settings saved');
     });
 }

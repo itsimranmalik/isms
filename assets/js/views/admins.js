@@ -2,6 +2,7 @@
  * Available only to admins. Uses the create-user Edge Function for sign-ups. */
 import { audit } from '../supabase-client.js';
 import { createLogin, emailToDisplayName } from '../modules/admin-users.js';
+import { toast } from '../modules/toast.js';
 
 export const title = 'Admins';
 
@@ -78,8 +79,9 @@ export async function render(root, { profile, supabase }) {
             if (!confirm(`Demote ${name} from admin to teacher? They'll lose access to all admin-only screens.`)) return;
             const { error } = await supabase.from('profiles')
                 .update({ role: 'teacher' }).eq('id', id);
-            if (error) return alert(error.message);
+            if (error) { toast.error(error.message); return; }
             await audit('admin.demote', 'profile', null, { user_id: id });
+            toast.success(`${name} demoted to teacher`);
             load();
         }));
     }
@@ -100,10 +102,12 @@ export async function render(root, { profile, supabase }) {
             });
             await audit('admin.create', 'profile', null, { username: fd.get('username') });
             alertBox.innerHTML = `<div class="alert alert-success">Admin created. They can now sign in with <strong>${fd.get('username')}</strong>.</div>`;
+            toast.success('New admin created');
             e.target.reset();
             load();
         } catch (err) {
             alertBox.innerHTML = '<div class="alert alert-danger">' + (err.message || 'Create failed.') + '</div>';
+            toast.error(err.message || 'Create failed');
         } finally {
             btn.disabled = false; btn.textContent = 'Create admin';
         }

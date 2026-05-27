@@ -76,6 +76,7 @@
         // Submissions go to the public.admissions table in Supabase. RLS lets
         // anonymous visitors INSERT; only admins can read them back.
         import { supabase } from './assets/js/supabase-client.js';
+        import { toast } from './assets/js/modules/toast.js';
 
         const form    = document.getElementById('application-form');
         const alertEl = document.getElementById('application-alert');
@@ -104,8 +105,10 @@
             if (error) {
                 alertEl.innerHTML = '<div class="alert alert-danger">Could not submit: '
                     + (error.message || 'unknown error') + '. Please try again or email us directly.</div>';
+                toast.error('Could not submit — please try again');
             } else {
                 alertEl.innerHTML = '<div class="alert alert-success">Thank you. Your application has been received — we will contact you within 2 working days.</div>';
+                toast.success('Application submitted successfully');
                 form.reset();
             }
             submit.disabled = false;

@@ -1,5 +1,6 @@
 /* Duas tracker — daily + namaz with class filter. */
 import { audit } from '../supabase-client.js';
+import { toast } from '../modules/toast.js';
 export const title = 'Duas';
 
 export async function render(root, { profile, supabase }) {
@@ -143,8 +144,9 @@ export async function render(root, { profile, supabase }) {
             };
             const { error } = await supabase.from('dua_progress')
                 .upsert(row, { onConflict: 'student_id,dua_id' });
-            if (error) return alert(error.message);
+            if (error) { toast.error(error.message); return; }
             await audit('duas.update', 'dua_progress', null, row);
+            toast.success('Dua saved');
             load();
         }));
     }

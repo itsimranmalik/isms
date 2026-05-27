@@ -1,5 +1,6 @@
 /* Attendance grid: one click per student per day */
 import { audit } from '../supabase-client.js';
+import { toast } from '../modules/toast.js';
 export const title = 'Attendance';
 
 export async function render(root, { profile, supabase }) {
@@ -68,8 +69,8 @@ export async function render(root, { profile, supabase }) {
             recorded_by: profile.teacher_id || null,
         }));
         const { error } = await supabase.from('attendance').upsert(entries, { onConflict: 'student_id,class_id,attended_on' });
-        if (error) return alert(error.message);
+        if (error) { toast.error(error.message); return; }
         await audit('attendance.bulk', 'attendance', cid, { date, count: entries.length });
-        alert(`Saved ${entries.length} attendance entries.`);
+        toast.success(`Saved ${entries.length} attendance entries`);
     });
 }

@@ -1,6 +1,7 @@
 /* Memorisation tracker — teacher/admin view.
  * Adds class filter; for teachers, students restricted to their primary roster. */
 import { audit } from '../supabase-client.js';
+import { toast } from '../modules/toast.js';
 export const title = 'Memorisation';
 
 export async function render(root, { profile, supabase }) {
@@ -134,8 +135,9 @@ export async function render(root, { profile, supabase }) {
             };
             const { error } = await supabase.from('memorisation_progress')
                 .upsert(row, { onConflict: 'student_id,surah_id' });
-            if (error) return alert(error.message);
+            if (error) { toast.error(error.message); return; }
             await audit('memorisation.update', 'memorisation_progress', null, row);
+            toast.success('Memorisation saved');
             load(studentId);
         }));
     }

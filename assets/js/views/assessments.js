@@ -3,6 +3,7 @@
 import { CATEGORIES, GUIDELINES, GRADE_BANDS, calculateAverage, resolveBand,
          identifyWeaknesses, generateRecommendations, recordAssessment } from '../modules/quran-recitation.js';
 import { audit } from '../supabase-client.js';
+import { toast } from '../modules/toast.js';
 
 export const title = 'Quran Recitation';
 
@@ -268,6 +269,7 @@ async function renderForm(root, sb, profile, classId, studentId) {
             const avg = calculateAverage(scores);
             const weak = identifyWeaknesses(scores);
             const recs = generateRecommendations(scores, avg);
+            toast.success(`Assessment saved · avg ${avg.toFixed(2)}`);
             alertBox.innerHTML = `
                 <div class="alert alert-success">
                     Saved. Average <strong>${avg.toFixed(2)}</strong>.
@@ -280,6 +282,7 @@ async function renderForm(root, sb, profile, classId, studentId) {
             refreshSummary();
         } catch (err) {
             alertBox.innerHTML = `<div class="alert alert-danger">${err.message || 'Save failed.'}</div>`;
+            toast.error(err.message || 'Save failed');
         }
     });
 }

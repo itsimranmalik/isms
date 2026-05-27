@@ -1,5 +1,6 @@
 /* Admissions — admin-only inbox for applications submitted from the public site. */
 import { audit } from '../supabase-client.js';
+import { toast } from '../modules/toast.js';
 export const title = 'Admissions';
 
 const STATUS_LABEL = {
@@ -156,9 +157,11 @@ export async function render(root, { profile, supabase }) {
             const { error } = await supabase.from('admissions').update(upd).eq('id', id);
             if (error) {
                 document.getElementById('adm-alert').innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
+                toast.error(error.message);
                 return;
             }
             await audit('admissions.update', 'admission', id, upd);
+            toast.success('Application updated');
             dlg.close();
             load();
         });
@@ -167,9 +170,11 @@ export async function render(root, { profile, supabase }) {
             const { error } = await supabase.from('admissions').delete().eq('id', id);
             if (error) {
                 document.getElementById('adm-alert').innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
+                toast.error(error.message);
                 return;
             }
             await audit('admissions.delete', 'admission', id);
+            toast.success('Application deleted');
             dlg.close();
             load();
         });
