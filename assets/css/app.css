@@ -178,3 +178,38 @@ body[data-app="1"] {
     .app-page { padding: 0; }
     .card { box-shadow: none; border: 1px solid #ddd; }
 }
+
+/* Make progress bars reliable inside table cells on every screen size */
+.progress {
+    display: block !important;
+    height: 10px !important;
+    min-width: 80px;
+    background: var(--border);
+    border-radius: 999px;
+    overflow: hidden;
+    margin: 4px 0;
+}
+.progress > span {
+    display: block;
+    height: 100%;
+    background: var(--green-700);
+    border-radius: 999px;
+    transition: width .25s ease;
+    min-width: 2px;     /* render a sliver even at 0% so it's visible */
+}
+@media (max-width: 800px) {
+    .progress { min-width: 100px; }
+}
+
+/* Unsaved-changes pill used by Attendance + others */
+.unsaved-pill {
+    display: inline-block;
+    background: #F59E0B22;
+    color: #B45309;
+    border: 1px solid #F59E0B55;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+}
+tr.row-dirty td { background: #FEF3C722; }

@@ -116,7 +116,9 @@ export async function render(root, { profile, supabase }) {
                                     <td><strong>${d.title}</strong><br><span class="text-muted" style="font-size:12px">${d.translation || ''}</span></td>
                                     <td class="arabic">${d.arabic_text || ''}</td>
                                     <td><select data-f="status">
-                                        ${['pending','in_progress','completed'].map(s => `<option ${s === (p.status||'pending') ? 'selected':''}>${s}</option>`).join('')}
+                                        ${[['pending','Pending'],['in_progress','In Progress'],['completed','Completed']].map(([v,lbl]) =>
+                                            `<option value="${v}" ${v === (p.status||'pending') ? 'selected':''}>${lbl}</option>`
+                                        ).join('')}
                                     </select></td>
                                     <td><input type="number" min="0" max="5" value="${p.score ?? 0}" data-f="score" style="width:60px"></td>
                                     <td><input type="checkbox" data-f="tajweed_verified" ${p.tajweed_verified ? 'checked' : ''}></td>

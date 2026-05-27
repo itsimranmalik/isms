@@ -29,7 +29,7 @@ export async function render(root, { profile, supabase }) {
                             <td><strong>${d.title}</strong><br><span class="text-muted" style="font-size:12px">${d.translation || ''}</span></td>
                             <td class="arabic">${d.arabic_text || ''}</td>
                             <td>${d.transliteration || ''}</td>
-                            <td><span class="chip">${p.status || 'pending'}</span></td>
+                            <td><span class="chip">${prettyStatus(p.status || 'pending')}</span></td>
                             <td>${p.score ?? '—'}</td>
                         </tr>`;
                     }).join('')}
@@ -37,4 +37,8 @@ export async function render(root, { profile, supabase }) {
             </table>
         </div>`;
     }).join('');
+}
+
+function prettyStatus(s) {
+    return ({ pending: 'Pending', in_progress: 'In Progress', completed: 'Completed' })[s] || s || '';
 }

@@ -18,6 +18,7 @@ export async function render(root, { profile, supabase }) {
                     <input type="date" id="att-date" value="${new Date().toISOString().slice(0, 10)}">
                 </label>
                 <button class="btn btn-primary" id="save-btn" disabled>Save attendance</button>
+                <span id="dirty-pill" class="unsaved-pill" style="display:none">● Unsaved changes</span>
             </div>
             <table class="table" id="att-table">
                 <thead><tr><th>Student</th><th>Present</th><th>Absent</th><th>Late</th><th>Excused</th></tr></thead>
@@ -35,6 +36,9 @@ export async function render(root, { profile, supabase }) {
     dateInp.addEventListener('change', load);
     if (classSel.value) load();
 
+    let initialState = {};   // student_id -> original status, for dirty detection
+    const pill = () => document.getElementById('dirty-pill');
+
     async function load() {
         const cid = Number(classSel.value);
         if (!cid) { saveBtn.disabled = true; return; }
@@ -43,10 +47,12 @@ export async function render(root, { profile, supabase }) {
             supabase.from('attendance').select('student_id, status').eq('class_id', cid).eq('attended_on', dateInp.value),
         ]);
         const status = new Map((existing || []).map(r => [r.student_id, r.status]));
+        initialState = {};
         const tbody = root.querySelector('tbody');
         tbody.innerHTML = (roster || []).map(r => {
             const s = r.students;
             const cur = status.get(s.id) || 'present';
+            initialState[s.id] = cur;
             return `<tr data-id="${s.id}">
                 <td>${s.first_name} ${s.last_name}</td>
                 ${['present','absent','late','excused'].map(st => `
@@ -55,7 +61,31 @@ export async function render(root, { profile, supabase }) {
             </tr>`;
         }).join('') || '<tr><td colspan="5"><em>No students enrolled in this class.</em></td></tr>';
         saveBtn.disabled = !(roster && roster.length);
+        markDirty(false);
+        // Mark row dirty when radio changes; flip the unsaved-changes pill
+        tbody.querySelectorAll('input[type=radio]').forEach(r => r.addEventListener('change', () => {
+            const tr = r.closest('tr');
+            const sid = tr.dataset.id;
+            const cur = tr.querySelector('input[type=radio]:checked')?.value;
+            const dirty = cur !== initialState[sid];
+            tr.classList.toggle('row-dirty', dirty);
+            refreshPill();
+        }));
     }
+
+    function refreshPill() {
+        const dirtyCount = root.querySelectorAll('tr.row-dirty').length;
+        const p = pill();
+        if (!p) return;
+        if (dirtyCount > 0) {
+            p.style.display = '';
+            p.textContent = `● ${dirtyCount} unsaved change${dirtyCount === 1 ? '' : 's'}`;
+            saveBtn.classList.add('btn-primary');
+        } else {
+            p.style.display = 'none';
+        }
+    }
+    function markDirty(_) { refreshPill(); }
 
     saveBtn.addEventListener('click', async () => {
         const cid = Number(classSel.value);
@@ -71,6 +101,8 @@ export async function render(root, { profile, supabase }) {
         const { error } = await supabase.from('attendance').upsert(entries, { onConflict: 'student_id,class_id,attended_on' });
         if (error) { toast.error(error.message); return; }
         await audit('attendance.bulk', 'attendance', cid, { date, count: entries.length });
-        toast.success(`Saved ${entries.length} attendance entries`);
+        toast.success(`Attendance saved for ${entries.length} students`);
+        // Reload so the dirty markers clear and the "initial state" picks up the new saved values
+        await load();
     });
 }

@@ -38,21 +38,60 @@ async function renderAdmin(root, sb) {
             </div>
             <div class="card span-12">
                 <h3>Recent assessments</h3>
-                <table class="table">
-                    <thead><tr><th>Date</th><th>Student</th><th>Module</th><th>Score</th><th>Grade</th></tr></thead>
-                    <tbody>
-                        ${(recent.data || []).map(a => `
-                            <tr>
-                                <td>${a.assessed_on}</td>
-                                <td>${a.students?.first_name || ''} ${a.students?.last_name || ''}</td>
-                                <td>${a.module_type}</td>
-                                <td>${a.overall_score ?? ''}</td>
-                                <td>${a.overall_grade ?? ''}</td>
-                            </tr>`).join('') || '<tr><td colspan="5"><em>No assessments yet.</em></td></tr>'}
-                    </tbody>
+                <table class="table" id="recent-assessments">
+                    <thead><tr>
+                        <th class="sort-h" data-key="assessed_on">Date <span class="sort-ind" data-key="assessed_on">▼</span></th>
+                        <th class="sort-h" data-key="name">Student <span class="sort-ind" data-key="name"></span></th>
+                        <th class="sort-h" data-key="module_type">Module <span class="sort-ind" data-key="module_type"></span></th>
+                        <th class="sort-h" data-key="overall_score">Score <span class="sort-ind" data-key="overall_score"></span></th>
+                        <th class="sort-h" data-key="overall_grade">Grade <span class="sort-ind" data-key="overall_grade"></span></th>
+                    </tr></thead>
+                    <tbody></tbody>
                 </table>
             </div>
         </div>`;
+
+    // Hydrate sortable recent-assessments table
+    const recentRows = (recent.data || []).map(a => ({
+        assessed_on:   a.assessed_on || '',
+        name:          ((a.students?.first_name || '') + ' ' + (a.students?.last_name || '')).trim(),
+        module_type:   a.module_type || '',
+        overall_score: a.overall_score == null ? null : Number(a.overall_score),
+        overall_grade: a.overall_grade || '',
+    }));
+    const sortState = { key: 'assessed_on', dir: -1 };  // newest first
+    const renderRecent = () => {
+        const sorted = recentRows.slice().sort((x, y) => {
+            const a = x[sortState.key], b = y[sortState.key];
+            if (a == null && b == null) return 0;
+            if (a == null) return 1;
+            if (b == null) return -1;
+            if (typeof a === 'number' && typeof b === 'number') return (a - b) * sortState.dir;
+            return String(a).localeCompare(String(b)) * sortState.dir;
+        });
+        const tbody = document.querySelector('#recent-assessments tbody');
+        tbody.innerHTML = sorted.map(r => `<tr>
+            <td>${r.assessed_on}</td>
+            <td>${r.name}</td>
+            <td>${r.module_type}</td>
+            <td>${r.overall_score ?? ''}</td>
+            <td>${r.overall_grade ?? ''}</td>
+        </tr>`).join('') || '<tr><td colspan="5"><em>No assessments yet.</em></td></tr>';
+        document.querySelectorAll('#recent-assessments .sort-ind').forEach(el => {
+            el.textContent = (el.dataset.key === sortState.key)
+                ? (sortState.dir === 1 ? '▲' : '▼') : '';
+        });
+    };
+    renderRecent();
+    document.querySelectorAll('#recent-assessments .sort-h').forEach(th => {
+        th.style.cursor = 'pointer';
+        th.addEventListener('click', () => {
+            const k = th.dataset.key;
+            if (sortState.key === k) sortState.dir *= -1;
+            else { sortState.key = k; sortState.dir = 1; }
+            renderRecent();
+        });
+    });
 
     if (top.data?.length && window.Chart) {
         new window.Chart(document.getElementById('topPerf'), {

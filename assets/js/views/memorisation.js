@@ -106,7 +106,9 @@ export async function render(root, { profile, supabase }) {
                 <td>${s.name_transliteration}</td>
                 <td><input type="number" min="0" max="${s.total_ayahs}" value="${p.ayahs_memorised || 0}" data-f="ayahs_memorised" style="width:80px"> / ${s.total_ayahs}</td>
                 <td><select data-f="status">
-                    ${['not_started','in_progress','completed'].map(st => `<option ${st === (p.status||'not_started') ? 'selected':''}>${st}</option>`).join('')}
+                    ${[['not_started','Not Started'],['in_progress','In Progress'],['completed','Completed']].map(([v,lbl]) =>
+                        `<option value="${v}" ${v === (p.status||'not_started') ? 'selected':''}>${lbl}</option>`
+                    ).join('')}
                 </select></td>
                 <td><input type="number" min="0" max="5" value="${p.quality_score ?? 0}" data-f="quality_score" style="width:60px"></td>
                 <td>${p.last_revised_on || '—'}</td>

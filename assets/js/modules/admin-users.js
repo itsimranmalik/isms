@@ -66,3 +66,31 @@ export async function createLogin({ username, password, full_name, role, teacher
     if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
     return json;
 }
+
+/**
+ * Call the admin-update-user Edge Function to change a user's password
+ * or display name (auth-side). Requires the function to be deployed.
+ *
+ * @param {object} p
+ * @param {string} p.user_id      target auth UUID
+ * @param {string} [p.password]   new password (min 8 chars)
+ * @param {string} [p.full_name]  new display name
+ */
+export async function adminUpdateUser({ user_id, password, full_name }) {
+    const cfg = window.ISMS_CONFIG || {};
+    const session = (await supabase.auth.getSession()).data.session;
+    if (!session) throw new Error('Not signed in.');
+    const url = `${cfg.SUPABASE_URL}/functions/v1/admin-update-user`;
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type':  'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey':        cfg.SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ user_id, password, full_name }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+    return json;
+}

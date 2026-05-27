@@ -36,11 +36,15 @@ export async function render(root, { profile, supabase }) {
                             <td>${s.name_transliteration}</td>
                             <td class="arabic">${s.name_arabic}</td>
                             <td><div class="progress" style="min-width:120px"><span style="width:${surahPct}%"></span></div> <span class="text-muted" style="font-size:12px">${p.ayahs_memorised || 0}/${s.total_ayahs}</span></td>
-                            <td><span class="chip">${p.status}</span></td>
+                            <td><span class="chip">${prettyStatus(p.status)}</span></td>
                             <td>${p.last_revised_on || '—'}</td>
                         </tr>`;
                     }).join('')}
                 </tbody>
             </table>
         </div>`;
+}
+
+function prettyStatus(s) {
+    return ({ not_started: 'Not Started', in_progress: 'In Progress', completed: 'Completed' })[s] || s || '';
 }
