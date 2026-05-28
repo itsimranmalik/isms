@@ -5,20 +5,34 @@ body[data-app="1"] {
     display: grid;
     grid-template-columns: 280px 1fr;
     min-height: 100vh;
-    background: var(--bg);
+    /* The sidebar is position:sticky and 100vh tall — once you scroll past
+       its full height, the column behind it would show the page bg. Paint
+       the first 280px of the body with the sidebar's gradient so the dark
+       column extends as far down as the page does. */
+    background:
+        linear-gradient(180deg, var(--green-900) 0%, #022820 800px) left top / 280px 100% no-repeat,
+        var(--bg);
+}
+@media (max-width: 800px) {
+    body[data-app="1"] { background: var(--bg); }   /* mobile: sidebar hides off-canvas */
 }
 
-/* Sidebar — Islamic-styled with subtle geometric backdrop and gold accents */
+/* Sidebar — Islamic-styled with subtle geometric backdrop and gold accents.
+ * NOTE: `position: sticky` keeps the sidebar in view as the main content
+ * scrolls. The body has a left-column gradient (see above) so when the
+ * sidebar is shorter than the page, the column behind it stays dark. */
 .app-sidebar {
     background:
         linear-gradient(180deg, var(--green-900) 0%, #022820 100%);
     color: #E5E7EB;
     padding: 18px 16px;
-    position: sticky; top: 0; height: 100vh;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    align-self: start;           /* so sticky has a height to lock to inside the grid */
     display: flex; flex-direction: column; gap: 14px;
     overflow-y: auto;
     border-right: 1px solid rgba(212,175,55,.15);
-    position: relative;
 }
 /* Geometric ornamental backdrop — very subtle 8-point star pattern */
 .app-sidebar::before {
