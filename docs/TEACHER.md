@@ -24,14 +24,15 @@ a password you'll remember.
 | Item | What it's for |
 |---|---|
 | Dashboard | Quick view of your classes |
-| My Students | All students enrolled in your classes |
-| My Classes | The classes you're assigned to |
-| Quran Grading | Record Quran Recitation assessments (0-5 scale) |
-| Memorisation | Track per-surah memorisation for your students |
-| Duas | Mark daily and namaz duas complete |
+| My Students | All students enrolled in classes you teach |
+| My Classes | The classes you're assigned to (chip "you teach" on each) |
+| Quran Grading | Record Quran Recitation assessments (0-5 scale) — only for students assigned to you as primary teacher |
+| Memorisation | Track per-surah memorisation — same primary-teacher filter |
+| Duas | Mark **Daily** and **Namaz** duas complete — same primary-teacher filter |
 | Attendance | Take attendance per class per day |
-| Reports | Class-level reports + downloadable PDFs |
+| Reports | Class-level reports across four tabs (Quran / Memorisation / Daily Duas / Namaz Duas) + PDFs |
 | My Account | Change your own password |
+| Help | This handbook, in-app |
 
 ---
 
@@ -106,13 +107,12 @@ The system automatically:
 ## 5. Memorisation tracking
 
 1. **Memorisation** in the sidebar.
-2. Pick a class, then a student.
+2. Pick a class, then a student (only your primary students show up).
 3. The table lists every surah from Al-Fatihah and Juz Amma. For each surah:
-   - **Memorised** — type the number of ayahs the student has memorised
-     (e.g. 5 / 7 for Al-Fatihah means halfway).
-   - **Status** — `not_started`, `in_progress`, or `completed`.
+   - **Memorised** — type the number of ayahs the student has memorised (e.g. 5 / 7 for Al-Fatihah means halfway).
+   - **Status** — **Not Started**, **In Progress**, or **Completed**.
    - **Quality** — 0-5 mastery score on the most recent revision.
-4. Click **Save** in that row.
+4. Click **Save** in that row → green toast confirms.
 
 The header chip shows total ayahs memorised and % of Quran for that student.
 
@@ -124,13 +124,13 @@ The header chip shows total ayahs memorised and % of Quran for that student.
 ## 6. Daily and Namaz Duas
 
 1. **Duas** in the sidebar.
-2. Pick a class, then a student.
+2. Pick a class, then a student (only your primary students show up).
 3. Filter by **Daily** or **Namaz** category (default: All).
 4. For each dua row:
-   - **Status** — pending, in_progress, completed.
+   - **Status** — Pending, In Progress, Completed.
    - **Score** — 0-5 mastery on oral assessment.
    - **Tajweed verified** — tick when the student recited with correct Tajweed.
-5. Save per row.
+5. Save per row — a green toast confirms each save.
 
 Header chip shows overall completion percentage.
 
@@ -141,7 +141,8 @@ Header chip shows overall completion percentage.
 1. **Attendance** in the sidebar.
 2. Pick a class and a date.
 3. Each student row has four radio buttons: **Present**, **Absent**, **Late**, **Excused**. Defaults to Present.
-4. Click **Save attendance** at the bottom.
+4. As you change someone's status, that row turns amber and a **"● N unsaved changes"** pill appears at the top — a visual reminder to hit save.
+5. Click **Save attendance** at the bottom → green toast confirms "Attendance saved for N students" and the amber clears.
 
 You can edit a past date's attendance by changing the date and re-saving.
 

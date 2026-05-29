@@ -39,6 +39,7 @@ password you'll remember.
 | Attendance | Last 180 days of attendance + attendance rate |
 | My Reports | Download your full progress report as a PDF |
 | My Account | Change your password |
+| Help | This handbook, inside the app |
 
 ---
 
@@ -95,7 +96,7 @@ each one you see:
 - **Surah** — transliterated name (e.g. "Al-Fatihah").
 - **Arabic** — the surah name in Arabic script.
 - **Progress bar** — how much of this surah you've memorised (e.g. 3 / 7 ayahs).
-- **Status** — `not_started`, `in_progress`, or `completed`.
+- **Status** — **Not Started**, **In Progress**, or **Completed**.
 - **Last revised** — when your teacher last checked you on this surah.
 
 The KPIs at the top show **total ayahs memorised**, **% of Quran**, and
@@ -118,7 +119,7 @@ For each dua:
 - **Title** + **Translation** in English.
 - **Arabic** — the dua in Arabic script.
 - **Transliteration** — Arabic in Latin letters.
-- **Status** chip — pending / in_progress / completed.
+- **Status** chip — **Pending / In Progress / Completed**.
 - **Score** — your teacher's 0-5 oral mastery score.
 
 The bar at the top of each category shows your overall completion percentage.
@@ -142,10 +143,9 @@ If your attendance looks wrong, tell your teacher.
 Click **Download PDF** to get a single A4 report card containing:
 
 - Your name and student code.
-- Last 10 Quran Recitation assessments with a **Trend** column
-  (showing improvement or decline per assessment).
-- Memorisation summary.
-- Daily + Namaz Duas completion.
+- Last 10 Quran Recitation assessments with a **Trend** column showing the change vs your previous assessment (green for improvement, red for drop, grey for flat or first).
+- Memorisation summary — total ayahs, % of Quran, surahs complete.
+- Daily + Namaz Duas completion percentages.
 - Signature lines for the teacher and principal.
 
 Useful for parents' evening or showing your progress at home.

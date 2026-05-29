@@ -32,11 +32,13 @@ If you used a username only, you'll need to reset via the Supabase dashboard
 | Assessment | Memorisation | Track per-surah memorisation |
 | Assessment | Duas | Track Daily and Namaz duas |
 | Assessment | Attendance | Bulk record attendance per class per day |
-| Admin | Reports | Class-level Quran / Memorisation / Duas reports + PDF/Excel/CSV |
-| Admin | Admins | Create more admins, demote existing ones |
-| Admin | Audit log | Read-only history of all writes |
+| Admin | Reports | Per-class drill-down: Quran Recitation / Memorisation / Daily Duas / Namaz Duas tabs + PDF/Excel/CSV |
+| Admin | Admissions | Inbox of applications submitted from the public Admissions page |
+| Admin | Admins | Create, edit, demote admin accounts |
+| Admin | Audit log | Read-only history of all writes, with date filter + CSV export |
 | Admin | Settings | School name, logo, theme |
 | You | My Account | Change your own password |
+| You | Help | This handbook, shown inside the app |
 
 ---
 
@@ -100,6 +102,12 @@ accidentally lock yourself out.
 
 ## 4. Day-to-day operations
 
+> **A note on saves.** Every save action (add/edit/delete) shows a small green toast in the bottom-right corner — "Student created", "Class deleted", "Memorisation saved", etc. If something fails you'll see a red toast with the error. Click any toast to dismiss it early.
+
+> **Dashboard recent assessments.** The Recent Assessments table on the dashboard is now sortable — click any column header (Date / Student / Module / Score / Grade) to sort. Arrow indicators show which column drives the order. Default: newest assessments first.
+
+
+
 ### 4.1 Recording a Quran Recitation assessment
 
 1. **Quran Grading** → pick a class (cards show count of students per class).
@@ -137,16 +145,16 @@ The header chip shows total ayahs memorised and % of Quran for the student.
 
 1. **Duas** in the sidebar.
 2. Pick a class → student → optionally filter by category (Daily / Namaz / All).
-3. Each dua row has Status (pending / in progress / completed), Score (0-5), Tajweed verified.
-4. Update and **Save**.
+3. Each dua row has Status (**Pending / In Progress / Completed**), Score (0-5), Tajweed verified.
+4. Update and **Save** — a green toast confirms the save.
 
 ### 4.4 Taking attendance
 
 1. **Attendance** in the sidebar.
 2. Pick a class and a date.
-3. Each student in the roster has four radio buttons: Present / Absent / Late / Excused.
-   Default is Present.
-4. **Save attendance** at the bottom.
+3. Each student in the roster has four radio buttons: Present / Absent / Late / Excused. Default is Present.
+4. When you change any student's status, that row turns amber and an **"● N unsaved changes"** pill appears at the top so you don't forget to save.
+5. Click **Save attendance** at the bottom. A green toast confirms how many entries were saved, and the amber markers clear.
 
 ### 4.5 Running reports
 
@@ -162,6 +170,17 @@ The header chip shows total ayahs memorised and % of Quran for the student.
 Per-student PDF reports include all three modules with progress trends.
 
 ---
+
+### 4.6 Reviewing admissions
+
+1. **Admissions** in the sidebar.
+2. Top filter chips: **All / New / Contacted / Enrolled / Rejected**. Defaults to All.
+3. Each row shows submitted date, child's name, DOB, guardian, contact, preferred start, and status chip.
+4. Click **Open** on a row → side dialog shows the full application plus a Status dropdown and an Admin notes field.
+5. Move it through the funnel: **New → Contacted → Enrolled** (or Rejected).
+6. **Export CSV** export all currently-visible rows (respects the filter).
+
+The public admissions form lives at `/admissions.html` — link to it from your website. Submissions go straight to Supabase and only admins can read them. Anonymous visitors can submit without an account.
 
 ## 5. Maintenance
 
@@ -183,18 +202,22 @@ If a colleague forgot their password:
 If they only have a username (no real email on file), only the manual reset works —
 Supabase can't email a fake-domain address.
 
-### 5.3 Demoting an admin
+### 5.3 Editing or demoting an admin
 
 1. **Admins** → find their row.
-2. Click **Demote to teacher** → confirm.
-3. They keep their login but lose the admin sidebar entries.
+2. **Edit** → opens a dialog. Change the full name; optionally type a new password (8+ chars) to reset theirs. Leave password blank to keep it. Save.
+3. **Demote** → confirm. They keep their login but lose the admin sidebar entries.
 
-The system blocks demoting the last admin — there must always be at least one.
+The system blocks demoting the last admin — there must always be at least one. The Demote button is hidden when only one admin exists.
 
 ### 5.4 Auditing actions
 
-1. **Audit log** → shows the last 200 write events: who, what, when, IP address.
-2. Useful when checking why a grade changed, who deleted a student, etc.
+1. **Audit log** in the sidebar.
+2. Top toolbar: pick a **From / To** date range and a **Limit** (100 / 200 / 500 / 1000), then **Refresh**.
+3. Table shows: when, action, object type+id, actor (first 8 chars of UUID), IP, and the JSON meta.
+4. **Export CSV** downloads everything currently shown — useful for compliance or end-of-month reviews.
+
+Audit catches every write: assessments saved, students added, attendance taken, admin demoted, etc. Useful when checking why a grade changed or who deleted a record.
 
 ---
 
