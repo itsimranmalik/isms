@@ -11,6 +11,7 @@ const NAV_BY_ROLE = {
         { hash: 'students',     label: 'Students',      icon: '🎓' },
         { hash: 'teachers',     label: 'Teachers',      icon: '👨‍🏫' },
         { hash: 'classes',      label: 'Classes',       icon: '🏫' },
+        { hash: 'import',       label: 'Bulk Import',   icon: '📥' },
         { grp: 'Assessment' },
         { hash: 'assessments',  label: 'Quran Grading', icon: '۝' },
         { hash: 'memorisation', label: 'Memorisation',  icon: '📖' },

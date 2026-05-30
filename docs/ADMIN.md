@@ -28,6 +28,7 @@ If you used a username only, you'll need to reset via the Supabase dashboard
 | School | Students | Add / edit / delete student records |
 | School | Teachers | Add / edit / delete teachers (and create their logins) |
 | School | Classes | Create classes, assign teachers, enrol students |
+| School | Bulk Import | Upload Students / Teachers / Classes from CSV templates |
 | Assessment | Quran Grading | Record Quran Recitation assessments (0-5) |
 | Assessment | Memorisation | Track per-surah memorisation |
 | Assessment | Duas | Track Daily and Namaz duas |
@@ -73,7 +74,29 @@ login. If not, click **+ Create login** in that row to add one.
 Same pattern as Teachers but on the Students screen. Login credentials are optional
 for students — many madrasas only give logins to older students or guardians.
 
-### 3.4 Create classes and assign teachers
+### 3.4 Bulk import (the fast way to set up a new school)
+
+If you have many students, teachers, or classes to add at once:
+
+1. **Bulk Import** in the sidebar.
+2. Pick the **Students / Teachers / Classes** tab.
+3. Click **Download template (CSV)** — opens a tiny file with the right column headers and one example row.
+4. Open it in Excel or Google Sheets. Replace the example row with your real data, one record per row. Save **as CSV** (not xlsx).
+5. Click **Upload filled CSV** → choose the file.
+6. Preview screen shows every row colour-coded — green = OK, pink = has issues. Click the issues panel to see the exact problems (missing required field, bad date format, etc.).
+7. Click **Import** when the preview looks right. The results card shows how many inserted, how many logins were created, and any failed rows with the error message.
+
+Column rules:
+
+- Headers must match the template exactly, in the same order.
+- Required columns are marked with `*` (e.g. `student_code*`, `first_name*`).
+- Dates use `YYYY-MM-DD` (e.g. `2014-05-12`).
+- Status defaults to `active` if blank.
+- For Students / Teachers, fill **both** `username` and `password` to create a login for that person at the same time. Leave both blank if you want to add the login later via the Edit dialog.
+
+A sample with 50 students typically imports in 5-15 seconds (longer if every row also creates a login because each login call hits the Edge Function).
+
+### 3.5 Create classes and assign teachers
 
 1. **Classes → + New class**.
 2. Name (e.g. "Beginner Quran"), Level (e.g. "Beginner"), description.
