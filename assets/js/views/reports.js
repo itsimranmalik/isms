@@ -61,8 +61,10 @@ async function renderClassReport(root, sb, profile, classId, tab) {
             sb.from('assessments').select('student_id, overall_score, overall_grade, assessed_on')
                 .in('student_id', ids).eq('module_type', 'quran_recitation')
                 .order('assessed_on', { ascending: false }),
-            sb.from('memorisation_progress').select('student_id, ayahs_memorised, status'),
-            sb.from('dua_progress').select('student_id, dua_id, status'),
+            sb.from('memorisation_progress')
+                .select('student_id, status, memorisation_score, quality_score'),
+            sb.from('dua_progress')
+                .select('student_id, dua_id, status, memorisation_score, tajweed_score, score'),
         ])
         : [{ data: [] }, { data: [] }, { data: [] }];
 
@@ -72,13 +74,11 @@ async function renderClassReport(root, sb, profile, classId, tab) {
         summary.set(r.students.id, {
             student: r.students,
             qr: [],
-            memAyahs: 0, memCompleted: 0,
-            duasDaily: { completed: 0 },
-            duasNamaz: { completed: 0 },
+            mem: { applicable: 0, completed: 0, memSum: 0, memCount: 0, tajSum: 0, tajCount: 0 },
+            duasDaily: { applicable: 0, completed: 0, memSum: 0, memCount: 0, tajSum: 0, tajCount: 0 },
+            duasNamaz: { applicable: 0, completed: 0, memSum: 0, memCount: 0, tajSum: 0, tajCount: 0 },
         });
     }
-    const totalDailyDuas = (allDuas || []).filter(d => d.category === 'daily').length || 1;
-    const totalNamazDuas = (allDuas || []).filter(d => d.category === 'namaz').length || 1;
     const duaCatById = new Map((allDuas || []).map(d => [d.id, d.category]));
 
     for (const a of (qrAsses || [])) {
@@ -86,14 +86,22 @@ async function renderClassReport(root, sb, profile, classId, tab) {
     }
     for (const m of (memProg || [])) {
         const s = summary.get(m.student_id); if (!s) continue;
-        s.memAyahs += m.ayahs_memorised || 0;
-        if (m.status === 'completed') s.memCompleted++;
+        if (m.status === 'not_applicable') continue;
+        s.mem.applicable++;
+        if (m.status === 'completed') s.mem.completed++;
+        if (m.memorisation_score != null) { s.mem.memSum += Number(m.memorisation_score); s.mem.memCount++; }
+        if (m.quality_score      != null) { s.mem.tajSum += Number(m.quality_score);      s.mem.tajCount++; }
     }
     for (const d of (duaProg || [])) {
         const s = summary.get(d.student_id); if (!s) continue;
+        if (d.status === 'not_applicable') continue;
         const cat = duaCatById.get(d.dua_id);
         const slot = cat === 'namaz' ? s.duasNamaz : s.duasDaily;
+        slot.applicable++;
         if (d.status === 'completed') slot.completed++;
+        const mem = d.memorisation_score ?? d.score;
+        if (mem != null)            { slot.memSum += Number(mem);              slot.memCount++; }
+        if (d.tajweed_score != null) { slot.tajSum += Number(d.tajweed_score); slot.tajCount++; }
     }
 
     const sorted = Array.from(summary.values())
@@ -131,8 +139,8 @@ async function renderClassReport(root, sb, profile, classId, tab) {
     const className = cls?.name || 'class';
     if (tab === 'quran')              renderQuranTab(pane, sorted, classId, className, schoolName, logoUrl, sb);
     else if (tab === 'memorisation')  renderMemTab  (pane, sorted, className, schoolName, logoUrl);
-    else if (tab === 'duas-daily')    renderDuaTab  (pane, sorted, totalDailyDuas, 'daily', className, schoolName, logoUrl);
-    else if (tab === 'duas-namaz')    renderDuaTab  (pane, sorted, totalNamazDuas, 'namaz', className, schoolName, logoUrl);
+    else if (tab === 'duas-daily')    renderDuaTab  (pane, sorted, 'daily', className, schoolName, logoUrl);
+    else if (tab === 'duas-namaz')    renderDuaTab  (pane, sorted, 'namaz', className, schoolName, logoUrl);
     else                              pane.innerHTML = '<div class="alert alert-danger">Unknown tab.</div>';
 }
 
@@ -200,14 +208,27 @@ function renderQuranTab(pane, sorted, classId, className, schoolName, logoUrl, s
 
 /* ----- Memorisation tab -------------------------------------------- */
 function renderMemTab(pane, sorted, className, schoolName, logoUrl) {
-    const rows = sorted.map(r => ({
-        student_code: r.student.student_code,
-        first_name:   r.student.first_name,
-        last_name:    r.student.last_name,
-        ayahs:        r.memAyahs,
-        percent:      Number((r.memAyahs / 6236 * 100).toFixed(2)),
-        surahs_complete: r.memCompleted,
-    }));
+    const rows = sorted.map(r => {
+        const m = r.mem;
+        const memPct = m.memCount ? Math.round(m.memSum / m.memCount / 5 * 100) : 0;
+        const tajPct = m.tajCount ? Math.round(m.tajSum / m.tajCount / 5 * 100) : 0;
+        const overall = m.memCount && m.tajCount ? Math.round((memPct + tajPct) / 2)
+                      : m.memCount ? memPct : m.tajCount ? tajPct : 0;
+        return {
+            student_code: r.student.student_code,
+            first_name:   r.student.first_name,
+            last_name:    r.student.last_name,
+            applicable:   m.applicable,
+            completed:    m.completed,
+            memorisation_pct: memPct,
+            tajweed_pct:      tajPct,
+            overall_pct:      overall,
+            // Compat fields for existing exporters
+            ayahs:            m.completed,                   // re-used as "surahs completed"
+            percent:          overall,
+            surahs_complete:  m.completed,
+        };
+    });
     pane.innerHTML = `
         <div class="card">
             <div class="toolbar">
@@ -217,16 +238,23 @@ function renderMemTab(pane, sorted, className, schoolName, logoUrl) {
                 <button class="btn" id="mem-csv">CSV</button>
             </div>
             <table class="table">
-                <thead><tr><th>Code</th><th>Student</th><th>Ayahs memorised</th><th>% of Quran</th><th>Surahs complete</th><th>Progress</th></tr></thead>
+                <thead><tr>
+                    <th>Code</th><th>Student</th>
+                    <th>Applicable</th><th>Completed</th>
+                    <th>Memorisation %</th><th>Tajweed %</th>
+                    <th>Overall %</th><th>Progress</th>
+                </tr></thead>
                 <tbody>
                     ${rows.map(r => `<tr>
                         <td>${r.student_code}</td>
                         <td>${r.first_name} ${r.last_name}</td>
-                        <td>${r.ayahs}</td>
-                        <td>${r.percent}%</td>
-                        <td>${r.surahs_complete}</td>
-                        <td><div class="progress" style="min-width:120px"><span style="width:${Math.min(100, r.percent)}%"></span></div></td>
-                    </tr>`).join('') || '<tr><td colspan="6"><em>No students.</em></td></tr>'}
+                        <td>${r.applicable}</td>
+                        <td>${r.completed}</td>
+                        <td>${r.memorisation_pct}%</td>
+                        <td>${r.tajweed_pct}%</td>
+                        <td><strong>${r.overall_pct}%</strong></td>
+                        <td><div class="progress" style="min-width:120px"><span style="width:${Math.min(100, r.overall_pct)}%"></span></div></td>
+                    </tr>`).join('') || '<tr><td colspan="8"><em>No students.</em></td></tr>'}
                 </tbody>
             </table>
         </div>
@@ -236,24 +264,33 @@ function renderMemTab(pane, sorted, className, schoolName, logoUrl) {
     });
     pane.querySelector('#mem-csv').addEventListener('click', () => {
         downloadCsv(`${className.replace(/\s+/g,'-').toLowerCase()}-memorisation.csv`,
-            ['Code','First Name','Last Name','Ayahs memorised','% of Quran','Surahs complete'],
-            rows.map(r => [r.student_code, r.first_name, r.last_name, r.ayahs, r.percent, r.surahs_complete]));
+            ['Code','First Name','Last Name','Applicable','Completed','Memorisation %','Tajweed %','Overall %'],
+            rows.map(r => [r.student_code, r.first_name, r.last_name, r.applicable, r.completed, r.memorisation_pct, r.tajweed_pct, r.overall_pct]));
         pane.querySelector('#export-status').innerHTML = '<div class="alert alert-success">CSV downloaded.</div>';
     });
 }
 
 /* ----- Daily / Namaz Duas tab (single function, parameterised) ---- */
-function renderDuaTab(pane, sorted, total, category, className, schoolName, logoUrl) {
+function renderDuaTab(pane, sorted, category, className, schoolName, logoUrl) {
     const label = category === 'namaz' ? 'Namaz Duas' : 'Daily Duas';
     const rows = sorted.map(r => {
         const slot = category === 'namaz' ? r.duasNamaz : r.duasDaily;
+        const memPct = slot.memCount ? Math.round(slot.memSum / slot.memCount / 5 * 100) : 0;
+        const tajPct = slot.tajCount ? Math.round(slot.tajSum / slot.tajCount / 5 * 100) : 0;
+        const overall = slot.memCount && slot.tajCount ? Math.round((memPct + tajPct) / 2)
+                      : slot.memCount ? memPct : slot.tajCount ? tajPct : 0;
         return {
             student_code: r.student.student_code,
             first_name:   r.student.first_name,
             last_name:    r.student.last_name,
+            applicable:   slot.applicable,
             completed:    slot.completed,
-            total,
-            percent:      Math.round(slot.completed / total * 100),
+            memorisation_pct: memPct,
+            tajweed_pct:      tajPct,
+            overall_pct:      overall,
+            // Compat fields the PDF exporter expects (it uses `completed`, `total`, `percent`)
+            total:   slot.applicable,
+            percent: overall,
         };
     });
     pane.innerHTML = `
@@ -265,16 +302,23 @@ function renderDuaTab(pane, sorted, total, category, className, schoolName, logo
                 <button class="btn" id="dua-csv">CSV</button>
             </div>
             <table class="table">
-                <thead><tr><th>Code</th><th>Student</th><th>Completed</th><th>Total</th><th>Progress %</th><th></th></tr></thead>
+                <thead><tr>
+                    <th>Code</th><th>Student</th>
+                    <th>Applicable</th><th>Completed</th>
+                    <th>Memorisation %</th><th>Tajweed %</th>
+                    <th>Overall %</th><th>Progress</th>
+                </tr></thead>
                 <tbody>
                     ${rows.map(r => `<tr>
                         <td>${r.student_code}</td>
                         <td>${r.first_name} ${r.last_name}</td>
+                        <td>${r.applicable}</td>
                         <td>${r.completed}</td>
-                        <td>${r.total}</td>
-                        <td>${r.percent}%</td>
-                        <td><div class="progress" style="min-width:120px"><span style="width:${r.percent}%"></span></div></td>
-                    </tr>`).join('') || '<tr><td colspan="6"><em>No students.</em></td></tr>'}
+                        <td>${r.memorisation_pct}%</td>
+                        <td>${r.tajweed_pct}%</td>
+                        <td><strong>${r.overall_pct}%</strong></td>
+                        <td><div class="progress" style="min-width:120px"><span style="width:${r.overall_pct}%"></span></div></td>
+                    </tr>`).join('') || '<tr><td colspan="8"><em>No students.</em></td></tr>'}
                 </tbody>
             </table>
         </div>
@@ -284,8 +328,8 @@ function renderDuaTab(pane, sorted, total, category, className, schoolName, logo
     });
     pane.querySelector('#dua-csv').addEventListener('click', () => {
         downloadCsv(`${className.replace(/\s+/g,'-').toLowerCase()}-${category}-duas.csv`,
-            ['Code','First Name','Last Name','Completed','Total','Progress %'],
-            rows.map(r => [r.student_code, r.first_name, r.last_name, r.completed, r.total, r.percent]));
+            ['Code','First Name','Last Name','Applicable','Completed','Memorisation %','Tajweed %','Overall %'],
+            rows.map(r => [r.student_code, r.first_name, r.last_name, r.applicable, r.completed, r.memorisation_pct, r.tajweed_pct, r.overall_pct]));
         pane.querySelector('#export-status').innerHTML = '<div class="alert alert-success">CSV downloaded.</div>';
     });
 }

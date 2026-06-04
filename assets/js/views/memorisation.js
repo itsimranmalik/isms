@@ -1,8 +1,17 @@
-/* Memorisation tracker — teacher/admin view.
- * Adds class filter; for teachers, students restricted to their primary roster. */
+/* Memorisation grading — admin/teacher.
+ * Columns: # | Surah | Status | Memorisation Score (0-5) | Tajweed Score (0-5) | Last revised | Save
+ * Status options: Not Started / Not Applicable / Completed
+ * Rows with status 'not_applicable' are excluded from the overall average. */
 import { audit } from '../supabase-client.js';
 import { toast } from '../modules/toast.js';
 export const title = 'Memorisation';
+
+const STATUSES = [
+    ['not_started',    'Not Started'],
+    ['not_applicable', 'Not Applicable'],
+    ['completed',      'Completed'],
+];
+const NA = 'not_applicable';
 
 export async function render(root, { profile, supabase }) {
     const isStaff = profile.role === 'admin' || profile.role === 'teacher';
@@ -12,11 +21,10 @@ export async function render(root, { profile, supabase }) {
     }
     const isAdmin = profile.role === 'admin';
 
-    // Classes the user can see
+    // Classes scoped to the user
     let classes;
     if (isAdmin) {
-        const { data } = await supabase.from('classes')
-            .select('id, name, level').order('name');
+        const { data } = await supabase.from('classes').select('id, name, level').order('name');
         classes = data || [];
     } else {
         const { data } = await supabase.from('class_teachers')
@@ -40,12 +48,16 @@ export async function render(root, { profile, supabase }) {
                 <label class="field">Student
                     <select id="memo-student"><option value="">Pick a class first…</option></select>
                 </label>
-                <div id="memo-summary" style="margin-left:auto"></div>
             </div>
             <table class="table" id="memo-table">
-                <thead><tr><th>#</th><th>Surah</th><th>Memorised</th><th>Status</th><th>Quality (0-5)</th><th>Last revised</th><th></th></tr></thead>
+                <thead><tr>
+                    <th>#</th><th>Surah</th><th>Status</th>
+                    <th>Memorisation Score (0-5)</th><th>Tajweed Score (0-5)</th>
+                    <th>Last revised</th><th></th>
+                </tr></thead>
                 <tbody></tbody>
             </table>
+            <div id="memo-overall" class="alert alert-info" style="margin-top:14px; display:none"></div>
         </div>`;
 
     const classSel   = document.getElementById('memo-class');
@@ -55,11 +67,7 @@ export async function render(root, { profile, supabase }) {
         if (studentSel.value) load(Number(studentSel.value));
         else clearTable();
     });
-
-    // For teachers with one class, pre-select it
-    if (!isAdmin && classes.length === 1) {
-        classSel.value = String(classes[0].id);
-    }
+    if (!isAdmin && classes.length === 1) classSel.value = String(classes[0].id);
     loadStudents();
 
     async function loadStudents() {
@@ -69,12 +77,10 @@ export async function render(root, { profile, supabase }) {
         if (classId) query = query.eq('class_id', classId);
         if (!isAdmin && profile.teacher_id) query = query.eq('primary_teacher_id', profile.teacher_id);
         const { data: roster } = await query;
-        // unique students (a student might be in multiple classes)
         const seen = new Set();
         const studs = [];
         for (const r of (roster || [])) {
-            const s = r.students;
-            if (s && !seen.has(s.id)) { seen.add(s.id); studs.push(s); }
+            const s = r.students; if (s && !seen.has(s.id)) { seen.add(s.id); studs.push(s); }
         }
         studs.sort((a, b) => (a.last_name || '').localeCompare(b.last_name || ''));
         studentSel.innerHTML = '<option value="">— pick a student —</option>' +
@@ -83,7 +89,7 @@ export async function render(root, { profile, supabase }) {
     }
 
     function clearTable() {
-        document.getElementById('memo-summary').innerHTML = '';
+        document.getElementById('memo-overall').style.display = 'none';
         root.querySelector('#memo-table tbody').innerHTML =
             '<tr><td colspan="7"><em>Pick a student.</em></td></tr>';
     }
@@ -91,49 +97,42 @@ export async function render(root, { profile, supabase }) {
     async function load(studentId) {
         const { data: prog } = await supabase
             .from('memorisation_progress')
-            .select('surah_id, ayahs_memorised, status, quality_score, last_revised_on')
+            .select('surah_id, status, memorisation_score, quality_score, last_revised_on')
             .eq('student_id', studentId);
         const map = new Map((prog || []).map(p => [p.surah_id, p]));
 
-        let totalMem = 0, completed = 0;
         const tbody = root.querySelector('#memo-table tbody');
         tbody.innerHTML = (surahs || []).map(s => {
-            const p = map.get(s.id) || { ayahs_memorised: 0, status: 'not_started', quality_score: '', last_revised_on: '' };
-            totalMem += p.ayahs_memorised || 0;
-            if (p.status === 'completed') completed++;
+            const p = map.get(s.id) || { status: 'not_started', memorisation_score: '', quality_score: '', last_revised_on: '' };
             return `<tr data-surah="${s.id}">
                 <td>${s.number}</td>
                 <td>${s.name_transliteration}</td>
-                <td><input type="number" min="0" max="${s.total_ayahs}" value="${p.ayahs_memorised || 0}" data-f="ayahs_memorised" style="width:80px"> / ${s.total_ayahs}</td>
                 <td><select data-f="status">
-                    ${[['not_started','Not Started'],['in_progress','In Progress'],['completed','Completed']].map(([v,lbl]) =>
-                        `<option value="${v}" ${v === (p.status||'not_started') ? 'selected':''}>${lbl}</option>`
-                    ).join('')}
+                    ${STATUSES.map(([v,lbl]) => `<option value="${v}" ${v === (p.status||'not_started') ? 'selected':''}>${lbl}</option>`).join('')}
                 </select></td>
-                <td><input type="number" min="0" max="5" value="${p.quality_score ?? 0}" data-f="quality_score" style="width:60px"></td>
+                <td><input type="number" min="0" max="5" value="${p.memorisation_score ?? ''}" data-f="memorisation_score" style="width:70px"></td>
+                <td><input type="number" min="0" max="5" value="${p.quality_score ?? ''}" data-f="quality_score" style="width:70px"></td>
                 <td>${p.last_revised_on || '—'}</td>
                 <td><button class="btn btn-primary save-btn">Save</button></td>
             </tr>`;
         }).join('');
 
-        const pct = (totalMem / 6236 * 100).toFixed(2);
-        document.getElementById('memo-summary').innerHTML =
-            `<span class="chip">${totalMem} ayahs (${pct}% of Quran)</span> <span class="chip gold">${completed} surahs complete</span>`;
+        refreshOverall();
 
         tbody.querySelectorAll('.save-btn').forEach(btn => btn.addEventListener('click', async ev => {
             const tr = ev.target.closest('tr');
             const surahId = Number(tr.dataset.surah);
-            const ayahs   = Number(tr.querySelector('[data-f=ayahs_memorised]').value);
-            const status  = tr.querySelector('[data-f=status]').value;
-            const quality = Number(tr.querySelector('[data-f=quality_score]').value);
+            const memScore = parseScore(tr.querySelector('[data-f=memorisation_score]').value);
+            const tajScore = parseScore(tr.querySelector('[data-f=quality_score]').value);
+            const status   = tr.querySelector('[data-f=status]').value;
             const row = {
-                student_id:      studentId,
-                surah_id:        surahId,
-                ayahs_memorised: ayahs,
+                student_id:         studentId,
+                surah_id:           surahId,
                 status,
-                quality_score:   quality,
-                teacher_id:      profile.teacher_id,
-                last_revised_on: new Date().toISOString().slice(0, 10),
+                memorisation_score: memScore,
+                quality_score:      tajScore,    // displayed as "Tajweed Score" but reuses existing column
+                teacher_id:         profile.teacher_id,
+                last_revised_on:    new Date().toISOString().slice(0, 10),
             };
             const { error } = await supabase.from('memorisation_progress')
                 .upsert(row, { onConflict: 'student_id,surah_id' });
@@ -142,5 +141,46 @@ export async function render(root, { profile, supabase }) {
             toast.success('Memorisation saved');
             load(studentId);
         }));
+
+        // Recalc overall when any input changes (without saving)
+        tbody.querySelectorAll('select, input').forEach(el =>
+            el.addEventListener('change', refreshOverall));
     }
+
+    function refreshOverall() {
+        const tbody = root.querySelector('#memo-table tbody');
+        const rows = [...tbody.querySelectorAll('tr[data-surah]')];
+        let applicable = 0, completed = 0;
+        let memSum = 0, memCount = 0, tajSum = 0, tajCount = 0;
+        for (const tr of rows) {
+            const status = tr.querySelector('[data-f=status]').value;
+            if (status === NA) continue;
+            applicable++;
+            if (status === 'completed') completed++;
+            const m = parseScore(tr.querySelector('[data-f=memorisation_score]').value);
+            const t = parseScore(tr.querySelector('[data-f=quality_score]').value);
+            if (m != null) { memSum += m; memCount++; }
+            if (t != null) { tajSum += t; tajCount++; }
+        }
+        const memPct = memCount ? Math.round(memSum / memCount / 5 * 100) : 0;
+        const tajPct = tajCount ? Math.round(tajSum / tajCount / 5 * 100) : 0;
+        const overall = memCount && tajCount ? Math.round((memPct + tajPct) / 2)
+                      : memCount ? memPct : tajCount ? tajPct : 0;
+        const div = document.getElementById('memo-overall');
+        div.style.display = '';
+        div.innerHTML = `
+            <strong>Overall: ${overall}%</strong> &nbsp;·&nbsp;
+            Memorisation avg: <strong>${memPct}%</strong> &nbsp;·&nbsp;
+            Tajweed avg: <strong>${tajPct}%</strong> &nbsp;·&nbsp;
+            Applicable surahs: ${applicable} &nbsp;·&nbsp;
+            Completed: ${completed}
+            <div class="progress" style="margin-top:8px; max-width:480px"><span style="width:${overall}%"></span></div>`;
+    }
+}
+
+function parseScore(v) {
+    if (v === '' || v == null) return null;
+    const n = Number(v);
+    if (Number.isNaN(n)) return null;
+    return Math.max(0, Math.min(5, Math.round(n)));
 }

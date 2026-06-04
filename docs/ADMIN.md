@@ -158,18 +158,25 @@ The 0-5 scale:
 
 1. **Memorisation** in the sidebar.
 2. Pick a class, then a student.
-3. The table lists every surah in the database with an editable **Memorised**
-   counter, **Status** dropdown, **Quality** score (0-5).
-4. Edit any row → click **Save** in that row.
+3. The table lists every surah with:
+   - **Status** — **Not Started / Not Applicable / Completed**
+   - **Memorisation Score** (0-5)
+   - **Tajweed Score** (0-5)
+4. Edit any row → **Save** → green toast confirms.
 
-The header chip shows total ayahs memorised and % of Quran for the student.
+The bottom of the screen shows an **Overall %** calculated as the average of the Memorisation and Tajweed scores across all applicable rows. Rows marked **Not Applicable** are excluded from this average — useful when a student isn't expected to cover certain surahs yet.
 
 ### 4.3 Marking duas complete
 
 1. **Duas** in the sidebar.
 2. Pick a class → student → optionally filter by category (Daily / Namaz / All).
-3. Each dua row has Status (**Pending / In Progress / Completed**), Score (0-5), Tajweed verified.
-4. Update and **Save** — a green toast confirms the save.
+3. Each dua row has:
+   - **Status** — **Not Applicable / Not Completed / Completed**
+   - **Memorisation Score** (0-5)
+   - **Tajweed Score** (0-5)
+4. Update and **Save** — a green toast confirms.
+
+The bottom of the screen shows an **Overall %** — average of Memorisation and Tajweed scores across applicable rows. **Not Applicable** rows are excluded.
 
 ### 4.4 Taking attendance
 
