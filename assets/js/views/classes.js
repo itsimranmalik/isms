@@ -109,6 +109,9 @@ export async function render(root, { profile, supabase }) {
         const canEnrol = canEnrolInClass(classId);
 
         detail.style.display = '';
+        // Smoothly scroll the detail panel into view so it's obvious something opened.
+        // requestAnimationFrame waits one frame so the panel has its real height first.
+        requestAnimationFrame(() => detail.scrollIntoView({ behavior: 'smooth', block: 'start' }));
         detail.innerHTML = `
             <h3>${cls.name} ${cls.level ? '<span class="chip">' + cls.level + '</span>' : ''}
                 ${myClassIds.has(classId) ? '<span class="chip gold">you teach this class</span>' : ''}
