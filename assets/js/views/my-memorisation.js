@@ -49,7 +49,7 @@ export async function render(root, { profile, supabase }) {
                 </tr></thead>
                 <tbody>
                     ${(surahs || []).map(s => {
-                        const p = map.get(s.id) || { status: 'not_started' };
+                        const p = map.get(s.id) || { status: 'not_applicable' };
                         return `<tr>
                             <td>${s.number}</td>
                             <td>${s.name_transliteration}</td>

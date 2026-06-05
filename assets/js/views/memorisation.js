@@ -103,12 +103,12 @@ export async function render(root, { profile, supabase }) {
 
         const tbody = root.querySelector('#memo-table tbody');
         tbody.innerHTML = (surahs || []).map(s => {
-            const p = map.get(s.id) || { status: 'not_started', memorisation_score: '', quality_score: '', last_revised_on: '' };
+            const p = map.get(s.id) || { status: 'not_applicable', memorisation_score: '', quality_score: '', last_revised_on: '' };
             return `<tr data-surah="${s.id}">
                 <td>${s.number}</td>
                 <td>${s.name_transliteration}</td>
                 <td><select data-f="status">
-                    ${STATUSES.map(([v,lbl]) => `<option value="${v}" ${v === (p.status||'not_started') ? 'selected':''}>${lbl}</option>`).join('')}
+                    ${STATUSES.map(([v,lbl]) => `<option value="${v}" ${v === (p.status||'not_applicable') ? 'selected':''}>${lbl}</option>`).join('')}
                 </select></td>
                 <td><input type="number" min="0" max="5" value="${p.memorisation_score ?? ''}" data-f="memorisation_score" style="width:70px"></td>
                 <td><input type="number" min="0" max="5" value="${p.quality_score ?? ''}" data-f="quality_score" style="width:70px"></td>
