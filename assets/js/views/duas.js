@@ -49,7 +49,8 @@ export async function render(root, { profile, supabase }) {
                 <label class="field">Category
                     <select id="dua-cat">
                         <option value="">All</option>
-                        <option value="daily">Daily</option>
+                        <option value="kalimas">Kalimas</option>
+                        <option value="daily">Daily Duas</option>
                         <option value="namaz">Namaz</option>
                     </select>
                 </label>

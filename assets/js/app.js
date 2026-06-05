@@ -26,6 +26,7 @@ const NAV_BY_ROLE = {
         { hash: 'settings',     label: 'Settings',      icon: '⚙️' },
         { grp: 'You' },
         { hash: 'account',      label: 'My Account',    icon: '👤' },
+        { hash: 'guidelines',   label: 'Guidelines',    icon: '📑' },
         { hash: 'help',         label: 'Help',          icon: '📘' },
     ],
     teacher: [
@@ -37,6 +38,7 @@ const NAV_BY_ROLE = {
         { hash: 'duas',         label: 'Duas',          icon: '🤲' },
         { hash: 'attendance',   label: 'Attendance',    icon: '✅' },
         { hash: 'reports',      label: 'Reports',       icon: '📄' },
+        { hash: 'guidelines',   label: 'Guidelines',    icon: '📑' },
         { hash: 'account',      label: 'My Account',    icon: '👤' },
         { hash: 'help',         label: 'Help',          icon: '📘' },
     ],

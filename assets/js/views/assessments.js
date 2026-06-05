@@ -24,17 +24,35 @@ export async function render(root, { profile, supabase }) {
 /* --------------------------------------------------------------------- */
 async function renderClassList(root, sb, profile) {
     const isAdmin = profile.role === 'admin';
-    let classes;
+    let classes = [];
+    const assessorClassIds = new Set();
+
     if (isAdmin) {
         const { data } = await sb.from('classes')
-            .select('id, name, level, class_students(count), class_teachers(count)')
+            .select('id, name, level, quran_assessor_id, class_students(count), class_teachers(count)')
             .order('name');
         classes = data || [];
+        classes.forEach(c => { if (c.quran_assessor_id) assessorClassIds.add(c.id); });
     } else {
-        const { data } = await sb.from('class_teachers')
-            .select('classes(id, name, level, class_students(count), class_teachers(count))')
-            .eq('teacher_id', profile.teacher_id);
-        classes = (data || []).map(r => r.classes).filter(Boolean);
+        // Teacher: union of classes they teach AND classes they are Quran Assessor of.
+        const [{ data: viaTeach }, { data: viaAssess }] = await Promise.all([
+            sb.from('class_teachers')
+                .select('classes(id, name, level, quran_assessor_id, class_students(count), class_teachers(count))')
+                .eq('teacher_id', profile.teacher_id),
+            sb.from('classes')
+                .select('id, name, level, quran_assessor_id, class_students(count), class_teachers(count)')
+                .eq('quran_assessor_id', profile.teacher_id),
+        ]);
+        const seen = new Set();
+        for (const r of (viaTeach || [])) {
+            const c = r.classes;
+            if (c && !seen.has(c.id)) { seen.add(c.id); classes.push(c); }
+        }
+        for (const c of (viaAssess || [])) {
+            assessorClassIds.add(c.id);
+            if (!seen.has(c.id)) { seen.add(c.id); classes.push(c); }
+        }
+        classes.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     }
 
     root.innerHTML = `
@@ -46,6 +64,7 @@ async function renderClassList(root, sb, profile) {
                     <p class="text-muted" style="margin:4px 0 12px">${c.level || ''}</p>
                     <span class="chip">${c.class_students?.[0]?.count || 0} students</span>
                     <span class="chip gold">${c.class_teachers?.[0]?.count || 0} teachers</span>
+                    ${assessorClassIds.has(c.id) && !isAdmin ? '<span class="chip" style="background:#FEF3C7;color:#92400E">Quran Assessor</span>' : ''}
                 </a>
             `).join('') || '<div class="alert alert-info">No classes available to you yet. Ask an admin to assign you to a class.</div>'}
         </div>`;
@@ -54,14 +73,18 @@ async function renderClassList(root, sb, profile) {
 /* --------------------------------------------------------------------- */
 async function renderStudentList(root, sb, profile, classId) {
     const isAdmin = profile.role === 'admin';
-    const { data: cls } = await sb.from('classes').select('name, level').eq('id', classId).single();
+    const { data: cls } = await sb.from('classes')
+        .select('name, level, quran_assessor_id').eq('id', classId).single();
 
-    // Teachers only see students whose primary_teacher_id is them.
-    // Admins see all enrolled.
+    // If this teacher is the Quran Assessor for the class, they see EVERY
+    // enrolled student (regardless of primary_teacher_id). Otherwise teachers
+    // only see students whose primary_teacher_id is them. Admins see all.
+    const isAssessor = !!profile.teacher_id && cls?.quran_assessor_id === profile.teacher_id;
+
     let query = sb.from('class_students')
         .select('students(id, first_name, last_name, student_code), primary_teacher_id')
         .eq('class_id', classId);
-    if (!isAdmin && profile.teacher_id) {
+    if (!isAdmin && !isAssessor && profile.teacher_id) {
         query = query.eq('primary_teacher_id', profile.teacher_id);
     }
     const { data: roster } = await query;
@@ -86,6 +109,8 @@ async function renderStudentList(root, sb, profile, classId) {
             ${cls?.level ? '<span class="chip">' + cls.level + '</span>' : ''}</p>
         <p class="text-muted">${isAdmin
             ? 'Click a student to record a new assessment. (You see all enrolled students.)'
+            : isAssessor
+            ? 'You are the Quran Assessor for this class — every enrolled student is shown.'
             : 'Showing only students assigned to you as their primary teacher. Ask the admin (or use the Classes screen) to assign more.'}</p>
         <div class="card">
             <table class="table">

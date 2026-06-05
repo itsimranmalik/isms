@@ -160,6 +160,26 @@ export async function render(root, { profile, supabase }) {
                         <label><input type="checkbox" id="assign-lead"> Lead</label>
                         <button class="btn btn-primary" id="assign-btn">Assign</button>
                     </div>` : ''}
+
+                    <hr style="margin:16px 0; border:0; border-top:1px solid var(--border)">
+                    <h3 style="margin-top:0">Quran Assessor</h3>
+                    <p class="text-muted" style="font-size:13px; margin:0 0 8px">
+                        A teacher who is NOT the class teacher and is responsible for the Quran Recitation assessment of this class. They will see this class in their "Quran Grading" screen.
+                    </p>
+                    ${isAdmin ? `
+                        <div class="toolbar">
+                            <select id="assessor-select" style="min-width:240px">
+                                <option value="">— no assessor —</option>
+                                ${(teachers || []).map(t => `<option value="${t.id}" ${t.id === cls.quran_assessor_id ? 'selected' : ''}>${t.first_name} ${t.last_name} (${t.staff_code})</option>`).join('')}
+                            </select>
+                            <button class="btn btn-primary" id="assessor-save-btn">Save</button>
+                        </div>
+                    ` : (() => {
+                        const a = (teachers || []).find(t => t.id === cls.quran_assessor_id);
+                        return a
+                            ? `<p><strong>${a.first_name} ${a.last_name}</strong> <span class="chip">${a.staff_code}</span></p>`
+                            : '<p class="text-muted"><em>None assigned.</em></p>';
+                    })()}
                 </div>
             </div>`;
 
@@ -209,6 +229,18 @@ export async function render(root, { profile, supabase }) {
                 toast.success('Teacher removed');
                 showDetail(classId);
             }));
+            document.getElementById('assessor-save-btn').addEventListener('click', async () => {
+                const sel = document.getElementById('assessor-select');
+                const newAssessor = sel.value ? Number(sel.value) : null;
+                const { error } = await supabase
+                    .from('classes')
+                    .update({ quran_assessor_id: newAssessor })
+                    .eq('id', classId);
+                if (error) { toast.error(error.message); return; }
+                await audit('class.quran_assessor', 'class', classId, { quran_assessor_id: newAssessor });
+                toast.success(newAssessor ? 'Quran Assessor assigned' : 'Quran Assessor cleared');
+                showDetail(classId);
+            });
         }
     }
 
