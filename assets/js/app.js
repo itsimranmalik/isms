@@ -2,6 +2,7 @@
  * App shell: auth gate, hash-based router, role-aware sidebar, view loader.
  */
 import { supabase, currentProfile, signOut } from './supabase-client.js';
+import { watchContainer as watchSortable } from './modules/sortable-table.js';
 
 const NAV_BY_ROLE = {
     admin: [
@@ -58,6 +59,7 @@ const NAV_BY_ROLE = {
 
 let PROFILE = null;
 let CURRENT_VIEW = null;
+let SORT_OBSERVER = null;   // tear down between routes so we don't leak observers
 
 async function boot() {
     PROFILE = await currentProfile();
@@ -113,12 +115,16 @@ async function route() {
     document.getElementById('app-sidebar').classList.remove('open');
 
     const root = document.getElementById('page-root');
+    if (SORT_OBSERVER) { SORT_OBSERVER.disconnect(); SORT_OBSERVER = null; }
     root.innerHTML = '<div class="loader">Loading…</div>';
     try {
         const mod = await import(`./views/${name}.js`);
         CURRENT_VIEW = mod;
         document.getElementById('page-title').textContent = mod.title || name;
         await mod.render(root, { profile: PROFILE, supabase });
+        // Every table.table inside the page becomes click-to-sort, including
+        // ones that views populate asynchronously later (MutationObserver).
+        SORT_OBSERVER = watchSortable(root);
     } catch (err) {
         console.error(err);
         root.innerHTML = `<div class="alert alert-danger">View "${name}" failed to load.<br><code style="font-size:12px">${err.message}</code></div>`;

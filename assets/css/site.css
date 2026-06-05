@@ -185,6 +185,16 @@ h3 { font-size: 18px; }
 .table tbody tr:hover { background: var(--green-50); }
 [data-theme="dark"] .table tbody tr:hover { background: rgba(5,102,86,.15); }
 
+/* Sortable column headers — wired up by modules/sortable-table.js */
+.table th.sortable { cursor: pointer; user-select: none; transition: background-color .12s ease; }
+.table th.sortable:hover { background: var(--green-50); color: var(--green-700); }
+[data-theme="dark"] .table th.sortable:hover { background: rgba(5,102,86,.2); color: var(--green-50); }
+.table th.sortable[data-sort-state="asc"],
+.table th.sortable[data-sort-state="desc"] { color: var(--green-700); background: var(--green-50); }
+[data-theme="dark"] .table th.sortable[data-sort-state="asc"],
+[data-theme="dark"] .table th.sortable[data-sort-state="desc"] { color: var(--green-50); background: rgba(5,102,86,.25); }
+.table th.sortable .sort-arrow { display: inline-block; min-width: 12px; font-size: 10px; margin-left: 2px; opacity: .9; }
+
 /* ----- chips / badges ----- */
 .chip { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--green-50); color: var(--green-800); }
 .chip.gold { background: rgba(212,175,55,.15); color: var(--gold-500); }
