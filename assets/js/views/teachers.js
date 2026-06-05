@@ -1,6 +1,6 @@
-/* Teachers CRUD — with admin-only "create login" via Edge Function */
+/* Teachers CRUD — with admin-only "create login" + "reset password" via Edge Functions */
 import { audit } from '../supabase-client.js';
-import { createLogin } from '../modules/admin-users.js';
+import { createLogin, adminUpdateUser } from '../modules/admin-users.js';
 import { toast } from '../modules/toast.js';
 export const title = 'Teachers';
 
@@ -37,7 +37,7 @@ export async function render(root, { profile, supabase }) {
                     </div>
                     <label>Qualifications<textarea name="qualifications" rows="2"></textarea></label>
 
-                    <fieldset style="border:1px solid var(--border); border-radius:8px; padding:14px; margin-top:6px">
+                    <fieldset id="creds-new" style="border:1px solid var(--border); border-radius:8px; padding:14px; margin-top:6px">
                         <legend style="color:var(--green-700); font-weight:600; padding:0 8px">Login credentials</legend>
                         <p class="text-muted" style="font-size:13px; margin:0 0 12px">
                             Pick a username the teacher will type when signing in. Letters, digits, dot/underscore/dash; 3–40 characters. (You can also use a real email if you prefer.) Leave blank to create the record without a login — you can add one later.
@@ -49,6 +49,14 @@ export async function render(root, { profile, supabase }) {
                         <p class="text-muted" style="font-size:12px; margin:8px 0 0">
                             On save, the login is created in Supabase and linked to this teacher record automatically.
                         </p>
+                    </fieldset>
+
+                    <fieldset id="creds-reset" style="border:1px solid var(--border); border-radius:8px; padding:14px; margin-top:6px; display:none">
+                        <legend style="color:var(--green-700); font-weight:600; padding:0 8px">Reset password</legend>
+                        <p class="text-muted" style="font-size:13px; margin:0 0 10px">
+                            This teacher already has a login. Enter a new password to reset it, or leave blank to keep the existing password.
+                        </p>
+                        <label>New password (min 8 chars)<input type="password" minlength="8" name="new_password" placeholder="leave blank to skip" autocomplete="new-password"></label>
                     </fieldset>
                 </div>
                 <div id="form-alert"></div>
@@ -95,20 +103,27 @@ export async function render(root, { profile, supabase }) {
     function openEdit(t) {
         document.getElementById('dlg-title').textContent = t ? 'Edit teacher' : 'Add teacher';
         for (const el of form.elements) {
-            if (el.name && el.name !== 'id' && el.name !== 'login_username' && el.name !== 'login_password') {
+            if (el.name && el.name !== 'id' && el.name !== 'login_username'
+                && el.name !== 'login_password' && el.name !== 'new_password') {
                 el.value = t && t[el.name] != null ? t[el.name] : '';
             }
         }
         form.elements['id'].value = t?.id || '';
         form.elements['login_username'].value = '';
         form.elements['login_password'].value = '';
-        // If editing and already linked, hide the credentials fieldset
-        const fs = form.querySelector('fieldset');
+        form.elements['new_password'].value = '';
+        // Swap between "Login credentials" (new login) and "Reset password" (existing login)
+        const fsNew   = form.querySelector('#creds-new');
+        const fsReset = form.querySelector('#creds-reset');
         if (t?.user_id) {
-            fs.style.display = 'none';
+            fsNew.style.display   = 'none';
+            fsReset.style.display = '';
         } else {
-            fs.style.display = '';
+            fsNew.style.display   = '';
+            fsReset.style.display = 'none';
         }
+        // Stash the auth user_id on the form for the submit handler
+        form.dataset.userId = t?.user_id || '';
         document.getElementById('form-alert').innerHTML = '';
         dlg.showModal();
     }
@@ -150,7 +165,10 @@ export async function render(root, { profile, supabase }) {
             const id            = payload.id;             delete payload.id;
             const loginUsername = payload.login_username; delete payload.login_username;
             const loginPassword = payload.login_password; delete payload.login_password;
+            const newPassword   = payload.new_password;   delete payload.new_password;
             for (const k of Object.keys(payload)) if (payload[k] === '') payload[k] = null;
+
+            const existingUserId = form.dataset.userId || '';
 
             // 1) Insert/update the teacher row first
             let teacherId = id;
@@ -164,8 +182,22 @@ export async function render(root, { profile, supabase }) {
             }
             await audit(id ? 'teacher.update' : 'teacher.create', 'teacher', teacherId, payload);
 
-            // 2) If admin entered login credentials, create the auth user + link
-            if (loginUsername && loginPassword) {
+            // 2a) Linked teacher + new password entered → reset via Edge Function
+            if (existingUserId && newPassword) {
+                if (newPassword.length < 8) throw new Error('Password must be at least 8 characters.');
+                const fullName = `${payload.first_name || ''} ${payload.last_name || ''}`.trim();
+                await adminUpdateUser({
+                    user_id:   existingUserId,
+                    password:  newPassword,
+                    full_name: fullName,
+                });
+                await audit('teacher.password_reset', 'teacher', teacherId, { user_id: existingUserId });
+                alertBox.innerHTML = `<div class="alert alert-success">Teacher saved and password reset.</div>`;
+                toast.success('Teacher saved and password reset');
+                setTimeout(() => { dlg.close(); load(); }, 1500);
+            }
+            // 2b) No existing login + credentials entered → create new login
+            else if (!existingUserId && loginUsername && loginPassword) {
                 const fullName = `${payload.first_name || ''} ${payload.last_name || ''}`.trim();
                 await createLogin({
                     username:   loginUsername,
@@ -177,7 +209,9 @@ export async function render(root, { profile, supabase }) {
                 alertBox.innerHTML = `<div class="alert alert-success">Teacher saved and login created. They can sign in with username <strong>${loginUsername}</strong>.</div>`;
                 toast.success('Teacher saved and login created');
                 setTimeout(() => { dlg.close(); load(); }, 1500);
-            } else {
+            }
+            // 2c) Just a record update, no credential changes
+            else {
                 toast.success(id ? 'Teacher updated' : 'Teacher created');
                 dlg.close();
                 load();
