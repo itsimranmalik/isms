@@ -73,6 +73,9 @@ h3 { font-size: 18px; }
 .nav-links { display: flex; gap: 22px; align-items: center; }
 .nav-links a { color: var(--text); font-weight: 500; }
 .nav-links a.active, .nav-links a:hover { color: var(--green-700); }
+/* The "Sign in" CTA in the top nav needs white text — beat .nav-links a specificity */
+.nav-links a.btn-primary,
+.nav-links a.btn-primary:hover { color: #fff; }
 .nav-toggle { display: none; background: none; border: 0; font-size: 22px; cursor: pointer; color: var(--text); }
 @media (max-width: 800px) {
     .nav-toggle { display: block; }
