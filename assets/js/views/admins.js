@@ -21,13 +21,33 @@ export async function render(root, { profile, supabase }) {
             <div class="card span-7">
                 <h3 style="margin-top:0">Current admins</h3>
                 <table class="table" id="admins-table">
-                    <thead><tr><th>Name</th><th>Account ID</th><th></th></tr></thead>
-                    <tbody><tr><td colspan="3"><em>Loading…</em></td></tr></tbody>
+                    <thead><tr><th>Name</th><th>Type</th><th>Account ID</th><th></th></tr></thead>
+                    <tbody><tr><td colspan="4"><em>Loading…</em></td></tr></tbody>
                 </table>
+                <p class="text-muted" style="font-size:12px; margin-top:6px">
+                    "Teacher + Admin" wears both hats — they keep their teaching duties and gain admin access.
+                    "Admin only" has no linked teacher record (cannot be demoted without breaking their account).
+                </p>
             </div>
 
             <div class="card span-5">
-                <h3 style="margin-top:0">+ Add a new admin</h3>
+                <h3 style="margin-top:0">Promote a teacher to admin</h3>
+                <p class="text-muted" style="font-size:13px; margin:0 0 10px">
+                    Give an existing teacher full admin access. You can revoke it any time via the Demote button.
+                </p>
+                <form class="form" id="promote-form">
+                    <label>Teacher to promote
+                        <select required name="profile_id" id="promote-select">
+                            <option value="">Loading teachers…</option>
+                        </select>
+                    </label>
+                    <div id="promote-alert"></div>
+                    <button class="btn btn-primary" type="submit" id="promote-btn">Promote to admin</button>
+                </form>
+
+                <hr style="margin:18px 0; border:0; border-top:1px solid var(--border)">
+
+                <h3 style="margin-top:0">+ Create a brand-new admin account</h3>
                 <form class="form" id="add-admin-form">
                     <label>Full name<input required name="full_name" placeholder="e.g. Aisha Khan"></label>
                     <label>Username or email<input required name="username" placeholder="aisha.k or aisha@example.com"></label>
@@ -36,8 +56,7 @@ export async function render(root, { profile, supabase }) {
                     <button class="btn btn-primary" type="submit" id="add-btn">Create admin</button>
                 </form>
                 <p class="text-muted" style="font-size:12px; margin-top:10px">
-                    Pick a username (letters/digits/.-_) or a real email. Real emails
-                    enable self-service password resets; usernames need an admin to reset them.
+                    Use this only when the new admin is NOT one of your existing teachers.
                 </p>
             </div>
         </div>
@@ -69,39 +88,71 @@ export async function render(root, { profile, supabase }) {
     await load();
 
     async function load() {
-        const { data: admins, error } = await supabase
-            .from('profiles')
-            .select('id, full_name')
-            .eq('role', 'admin')
-            .order('full_name');
+        const [{ data: admins, error }, { data: teacherProfiles }] = await Promise.all([
+            supabase.from('profiles').select('id, full_name, teacher_id').eq('role', 'admin').order('full_name'),
+            supabase.from('profiles')
+                .select('id, full_name, teacher_id, teachers(staff_code)')
+                .eq('role', 'teacher')
+                .not('teacher_id', 'is', null)
+                .order('full_name'),
+        ]);
         if (error) {
             root.querySelector('tbody').innerHTML =
-                `<tr><td colspan="3"><div class="alert alert-danger">${error.message}</div></td></tr>`;
+                `<tr><td colspan="4"><div class="alert alert-danger">${error.message}</div></td></tr>`;
             return;
         }
         const meId = profile.id;
         const isLastAdmin = (admins || []).length <= 1;
 
         root.querySelector('#admins-table tbody').innerHTML = (admins || []).map(a => {
-            const isYou = a.id === meId;
+            const isYou       = a.id === meId;
+            const hasTeacher  = a.teacher_id != null;
+            const typeChip    = hasTeacher
+                ? '<span class="chip">Teacher + Admin</span>'
+                : '<span class="chip gold">Admin only</span>';
+            // Block the Demote button for the last admin, for self, and for "Admin only" admins (would lose access).
+            const canDemote   = !isYou && !isLastAdmin && hasTeacher;
             return `<tr>
                 <td>${escape(a.full_name || '(no name)')} ${isYou ? '<span class="chip">you</span>' : ''}</td>
+                <td>${typeChip}</td>
                 <td><code style="font-size:11px">${a.id}</code></td>
                 <td style="white-space:nowrap">
                     <button class="btn edit-btn" data-id="${a.id}" data-name='${(a.full_name || '').replace(/'/g, "&apos;").replace(/"/g, "&quot;")}'>Edit</button>
-                    ${(!isYou && !isLastAdmin)
+                    ${canDemote
                         ? `<button class="btn demote-btn" data-id="${a.id}" data-name="${escape(a.full_name || '')}">Demote</button>`
-                        : (isLastAdmin && (admins.length === 1) ? '<span class="chip warn" style="margin-left:6px">last admin</span>' : '')}
+                        : (isLastAdmin && admins.length === 1
+                            ? '<span class="chip warn" style="margin-left:6px">last admin</span>'
+                            : (!hasTeacher && !isYou
+                                ? '<span class="chip warn" style="margin-left:6px" title="No teacher record to fall back to">cannot demote</span>'
+                                : ''))}
                 </td>
             </tr>`;
-        }).join('') || '<tr><td colspan="3"><em>No admins.</em></td></tr>';
+        }).join('') || '<tr><td colspan="4"><em>No admins.</em></td></tr>';
+
+        // Populate the "Promote a teacher" dropdown with teachers who are not already admins.
+        const promoteSel = document.getElementById('promote-select');
+        if (promoteSel) {
+            const eligible = (teacherProfiles || []);
+            if (eligible.length === 0) {
+                promoteSel.innerHTML = '<option value="">No teachers available to promote.</option>';
+            } else {
+                promoteSel.innerHTML = '<option value="">— pick a teacher —</option>'
+                    + eligible.map(t => `<option value="${t.id}">${escape(t.full_name || 'Unnamed')}${t.teachers?.staff_code ? ' ('+t.teachers.staff_code+')' : ''}</option>`).join('');
+            }
+        }
 
         root.querySelectorAll('.edit-btn').forEach(b => b.addEventListener('click', () => {
             openEdit(b.dataset.id, b.dataset.name.replace(/&apos;/g, "'").replace(/&quot;/g, '"'));
         }));
         root.querySelectorAll('.demote-btn').forEach(b => b.addEventListener('click', async () => {
             const id = b.dataset.id, name = b.dataset.name;
-            if (!confirm(`Demote ${name} from admin to teacher? They'll lose access to admin-only screens.`)) return;
+            // Double-check: never demote an admin with no teacher_id (they'd be locked out)
+            const target = (admins || []).find(a => a.id === id);
+            if (!target?.teacher_id) {
+                toast.error('Cannot demote — this admin has no linked teacher record.');
+                return;
+            }
+            if (!confirm(`Demote ${name} from admin back to teacher? They'll lose access to admin-only screens but keep their teaching duties. You can promote them back any time.`)) return;
             const { error } = await supabase.from('profiles').update({ role: 'teacher' }).eq('id', id);
             if (error) { toast.error(error.message); return; }
             await audit('admin.demote', 'profile', null, { user_id: id });
@@ -109,6 +160,34 @@ export async function render(root, { profile, supabase }) {
             load();
         }));
     }
+
+    // Promote handler — flip a teacher's role to 'admin'.
+    document.getElementById('promote-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const alertBox = document.getElementById('promote-alert');
+        const btn      = document.getElementById('promote-btn');
+        alertBox.innerHTML = '';
+        btn.disabled = true; btn.textContent = 'Promoting…';
+        try {
+            const fd = new FormData(e.target);
+            const profileId = fd.get('profile_id');
+            if (!profileId) throw new Error('Pick a teacher first.');
+            const sel  = document.getElementById('promote-select');
+            const name = sel.options[sel.selectedIndex]?.text || 'teacher';
+            const { error } = await supabase.from('profiles').update({ role: 'admin' }).eq('id', profileId);
+            if (error) throw error;
+            await audit('admin.promote', 'profile', null, { user_id: profileId });
+            alertBox.innerHTML = `<div class="alert alert-success">${escape(name)} is now an admin. They'll see admin-only screens on their next page load.</div>`;
+            toast.success(`${name} promoted to admin`);
+            e.target.reset();
+            load();
+        } catch (err) {
+            alertBox.innerHTML = '<div class="alert alert-danger">' + (err.message || 'Promote failed.') + '</div>';
+            toast.error(err.message || 'Promote failed');
+        } finally {
+            btn.disabled = false; btn.textContent = 'Promote to admin';
+        }
+    });
 
     function openEdit(userId, currentName) {
         const f = document.getElementById('adm-form');
