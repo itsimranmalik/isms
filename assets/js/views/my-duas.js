@@ -61,7 +61,7 @@ export async function render(root, { profile, supabase }) {
                             return `<tr>
                                 <td><strong>${escapeHtml(d.title)}</strong></td>
                                 <td class="text-muted">${escapeHtml(d.translation || '')}</td>
-                                <td><span class="chip">${prettyStatus(p.status || 'not_completed')}</span></td>
+                                <td><span class="chip">${prettyStatus(p.status || 'not_applicable')}</span></td>
                                 <td>${scoreCell(mem)}</td>
                                 <td>${scoreCell(p.tajweed_score)}</td>
                             </tr>`;

@@ -130,7 +130,7 @@ export async function render(root, { profile, supabase }) {
                                         <div class="text-muted" style="font-size:12px">${escapeHtml(d.translation || '')}</div>
                                     </td>
                                     <td><select data-f="status">
-                                        ${STATUSES.map(([v,lbl]) => `<option value="${v}" ${v === (p.status||'not_completed') ? 'selected':''}>${lbl}</option>`).join('')}
+                                        ${STATUSES.map(([v,lbl]) => `<option value="${v}" ${v === (p.status||'not_applicable') ? 'selected':''}>${lbl}</option>`).join('')}
                                     </select></td>
                                     <td><input type="number" min="0" max="5" value="${mem}" data-f="memorisation_score" style="width:70px"></td>
                                     <td><input type="number" min="0" max="5" value="${taj}" data-f="tajweed_score" style="width:70px"></td>
