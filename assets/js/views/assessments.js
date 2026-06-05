@@ -104,9 +104,11 @@ async function renderStudentList(root, sb, profile, classId) {
         (a.students?.last_name || '').localeCompare(b.students?.last_name || ''));
 
     root.innerHTML = `
-        <p style="margin-top:0"><a href="#/assessments">&larr; All classes</a> &middot;
+        <p style="margin-top:0; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+            <a class="back-link" href="#/assessments"><span class="arrow">&larr;</span> All classes</a>
             <strong>${cls?.name || 'Class'}</strong>
-            ${cls?.level ? '<span class="chip">' + cls.level + '</span>' : ''}</p>
+            ${cls?.level ? '<span class="chip">' + cls.level + '</span>' : ''}
+        </p>
         <p class="text-muted">${isAdmin
             ? 'Click a student to record a new assessment. (You see all enrolled students.)'
             : isAssessor
@@ -145,10 +147,12 @@ async function renderForm(root, sb, profile, classId, studentId) {
     ]);
 
     root.innerHTML = `
-        <p style="margin-top:0"><a href="#/assessments">&larr; Classes</a> &middot;
-            <a href="#/assessments?class=${classId}">${cls?.name || 'Class'}</a> &middot;
+        <p style="margin-top:0; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+            <a class="back-link" href="#/assessments"><span class="arrow">&larr;</span> Classes</a>
+            <a class="back-link" href="#/assessments?class=${classId}"><span class="arrow">&larr;</span> ${cls?.name || 'Class'}</a>
             <strong>${student?.first_name} ${student?.last_name}</strong>
-            <span class="chip">${student?.student_code}</span></p>
+            <span class="chip">${student?.student_code}</span>
+        </p>
 
         <div class="grid-app">
             <div class="card span-12">

@@ -116,9 +116,11 @@ async function renderClassReport(root, sb, profile, classId, tab) {
     const tabBtn  = (t, label) => `<a href="${tabHref(t)}" class="btn ${t === tab ? 'btn-primary' : ''}">${label}</a>`;
 
     root.innerHTML = `
-        <p style="margin-top:0"><a href="#/reports">&larr; All classes</a> &middot;
+        <p style="margin-top:0; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+            <a class="back-link" href="#/reports"><span class="arrow">&larr;</span> All classes</a>
             <strong>${cls?.name || 'Class'}</strong>
-            ${cls?.level ? '<span class="chip">' + cls.level + '</span>' : ''}</p>
+            ${cls?.level ? '<span class="chip">' + cls.level + '</span>' : ''}
+        </p>
 
         <div class="kpis">
             <div class="kpi"><div class="label">Students</div><div class="value">${sorted.length}</div></div>

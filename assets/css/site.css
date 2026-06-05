@@ -198,6 +198,29 @@ h3 { font-size: 18px; }
 [data-theme="dark"] .table th.sortable[data-sort-state="desc"] { color: var(--green-50); background: rgba(5,102,86,.25); }
 .table th.sortable .sort-arrow { display: inline-block; min-width: 12px; font-size: 10px; margin-left: 2px; opacity: .9; }
 
+/* ----- back-link pill (drill-down navigation) ----- */
+.back-link {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px 7px 12px;
+    border-radius: 999px;
+    background: var(--green-50);
+    color: var(--green-700);
+    border: 1px solid var(--green-100, #C8E6DE);
+    font-weight: 600; font-size: 14px;
+    text-decoration: none;
+    transition: background .15s ease, transform .05s ease, box-shadow .15s ease;
+}
+.back-link:hover {
+    background: var(--green-100, #C8E6DE);
+    color: var(--green-800);
+    box-shadow: var(--shadow);
+    text-decoration: none;
+}
+.back-link:active { transform: translateY(1px); }
+.back-link .arrow { font-size: 16px; line-height: 1; }
+[data-theme="dark"] .back-link { background: rgba(5,102,86,.2); border-color: rgba(5,102,86,.4); color: var(--green-50); }
+[data-theme="dark"] .back-link:hover { background: rgba(5,102,86,.35); }
+
 /* ----- chips / badges ----- */
 .chip { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--green-50); color: var(--green-800); }
 .chip.gold { background: rgba(212,175,55,.15); color: var(--gold-500); }
