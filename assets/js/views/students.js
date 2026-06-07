@@ -14,7 +14,7 @@ export async function render(root, { profile, supabase }) {
                 <span class="text-muted" id="count" style="margin-left:auto"></span>
             </div>
             <table class="table" id="students-table">
-                <thead><tr><th>Code</th><th>Name</th><th>Stage</th><th>Guardian</th><th>Phone</th><th>Login?</th><th>Status</th><th></th></tr></thead>
+                <thead><tr><th>Code</th><th>Name</th><th>Class</th><th>Stage</th><th>Guardian</th><th>Phone</th><th>Login?</th><th>Status</th><th></th></tr></thead>
                 <tbody></tbody>
             </table>
         </div>
@@ -90,23 +90,45 @@ export async function render(root, { profile, supabase }) {
     let cache = [];
 
     async function load() {
-        const { data, error } = await supabase
-            .from('students').select('*').order('last_name').order('first_name');
+        const [{ data, error }, { data: enrolments }] = await Promise.all([
+            supabase.from('students').select('*').order('last_name').order('first_name'),
+            supabase.from('class_students').select('student_id, classes(name)'),
+        ]);
         if (error) { alert(error.message); return; }
+        // Build student_id -> sorted class names
+        const byStudent = new Map();
+        for (const e of (enrolments || [])) {
+            if (!e.student_id || !e.classes?.name) continue;
+            const arr = byStudent.get(e.student_id) || [];
+            arr.push(e.classes.name);
+            byStudent.set(e.student_id, arr);
+        }
+        for (const s of (data || [])) {
+            const cls = byStudent.get(s.id) || [];
+            cls.sort((a, b) => a.localeCompare(b));
+            s.class_names = cls;
+        }
         cache = data;
         renderRows();
     }
 
     function renderRows() {
         const q = (search?.value || '').toLowerCase().trim();
-        const filtered = cache.filter(s =>
-            !q || (s.first_name + ' ' + s.last_name + ' ' + s.student_code).toLowerCase().includes(q));
+        const filtered = cache.filter(s => {
+            if (!q) return true;
+            const hay = [
+                s.first_name, s.last_name, s.student_code,
+                ...(s.class_names || []),
+            ].join(' ').toLowerCase();
+            return hay.includes(q);
+        });
         document.getElementById('count').textContent = `${filtered.length} students`;
         const tbody = root.querySelector('tbody');
         tbody.innerHTML = filtered.map(s => `
             <tr>
                 <td>${s.student_code}</td>
                 <td>${s.first_name} ${s.last_name}</td>
+                <td>${classChips(s)}</td>
                 <td>${stageChip(s)}</td>
                 <td>${s.guardian_name || ''}</td>
                 <td>${s.guardian_phone || ''}</td>
@@ -116,7 +138,7 @@ export async function render(root, { profile, supabase }) {
                 <td><span class="chip ${s.status === 'active' ? '' : 'warn'}">${s.status}</span></td>
                 <td>${canWrite ? `<button class="btn edit-btn" data-id="${s.id}">Edit</button>
                                    <button class="btn del-btn"  data-id="${s.id}">Delete</button>` : ''}</td>
-            </tr>`).join('') || '<tr><td colspan="8"><em>No students.</em></td></tr>';
+            </tr>`).join('') || '<tr><td colspan="9"><em>No students.</em></td></tr>';
 
         tbody.querySelectorAll('.edit-btn').forEach(b => b.addEventListener('click', () => openEdit(b.dataset.id)));
         tbody.querySelectorAll('.del-btn').forEach(b => b.addEventListener('click', () => del(b.dataset.id)));
@@ -245,6 +267,11 @@ export async function render(root, { profile, supabase }) {
         if (s.reading_stage === 'qaidah') return '<span class="chip">Qaidah' + (s.qaidah_page != null ? ' · p' + s.qaidah_page : '') + '</span>';
         if (s.reading_stage === 'juz')    return '<span class="chip">Juz Amm, 1, 2</span>';
         return '<span class="chip warn">not set</span>';
+    }
+    function classChips(s) {
+        const arr = s.class_names || [];
+        if (arr.length === 0) return '<span class="chip warn">unassigned</span>';
+        return arr.map(n => `<span class="chip" style="margin-right:4px">${n}</span>`).join('');
     }
 
     load();
