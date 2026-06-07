@@ -9,6 +9,12 @@ const DOCS = [
         icon:        '۝',
     },
     {
+        name:        'Qaidah, Juz Amm, Juz 1 and 2 — Marking Guidelines',
+        path:        'docs/guidelines/qaidah-juz-marking-guidelines.pdf',
+        description: '1-5 scoring rubric for Letter Recognition, Joining & Reading, Makharij & Tajweed, and Fluency & Confidence. Use this when grading Qaidah or Juz Amm / 1 / 2 students.',
+        icon:        '🕌',
+    },
+    {
         name:        'Surah & Duas — Marking Guidelines',
         path:        'docs/guidelines/surah-and-duas-marking-guidelines.pdf',
         description: '1-5 scoring rubric for Memorisation and Pronunciation. Use this when grading Memorisation or Duas.',

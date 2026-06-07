@@ -1,11 +1,15 @@
-/* Quran Recitation — hierarchical: Classes -> Students -> Grading form.
+/* Quran / Qaidah Recitation — hierarchical: Classes -> Students -> Grading form.
+ * The grading form branches on the student's reading_stage:
+ *   'quran' -> 5-category Quran rubric (Fluency/Makharij/Tajweed/Waqf/Accuracy)
+ *   'qaidah' or 'juz' -> 4-category Qaidah rubric, with current page tracking
+ *   null -> prompt to set the stage in the Students screen first
  * Available to admin and teacher only. */
-import { CATEGORIES, GUIDELINES, GRADE_BANDS, calculateAverage, resolveBand,
-         identifyWeaknesses, generateRecommendations, recordAssessment } from '../modules/quran-recitation.js';
+import * as Quran  from '../modules/quran-recitation.js';
+import * as Qaidah from '../modules/qaidah-reading.js';
 import { audit } from '../supabase-client.js';
 import { toast } from '../modules/toast.js';
 
-export const title = 'Quran Recitation';
+export const title = 'Reading Assessment';
 
 export async function render(root, { profile, supabase }) {
     if (profile.role !== 'admin' && profile.role !== 'teacher') {
@@ -82,7 +86,7 @@ async function renderStudentList(root, sb, profile, classId) {
     const isAssessor = !!profile.teacher_id && cls?.quran_assessor_id === profile.teacher_id;
 
     let query = sb.from('class_students')
-        .select('students(id, first_name, last_name, student_code), primary_teacher_id')
+        .select('students(id, first_name, last_name, student_code, reading_stage, qaidah_page), primary_teacher_id')
         .eq('class_id', classId);
     if (!isAdmin && !isAssessor && profile.teacher_id) {
         query = query.eq('primary_teacher_id', profile.teacher_id);
@@ -92,9 +96,9 @@ async function renderStudentList(root, sb, profile, classId) {
 
     const { data: asses } = ids.length
         ? await sb.from('assessments')
-            .select('student_id, overall_score, overall_grade, assessed_on')
+            .select('student_id, overall_score, overall_grade, assessed_on, module_type')
             .in('student_id', ids)
-            .eq('module_type', 'quran_recitation')
+            .in('module_type', ['quran_recitation', 'qaidah_reading'])
             .order('assessed_on', { ascending: false })
         : { data: [] };
     const latest = new Map();
@@ -116,90 +120,131 @@ async function renderStudentList(root, sb, profile, classId) {
             : 'Showing only students assigned to you as their primary teacher. Ask the admin (or use the Classes screen) to assign more.'}</p>
         <div class="card">
             <table class="table">
-                <thead><tr><th>Code</th><th>Name</th><th>Last assessed</th><th>Latest grade</th><th></th></tr></thead>
+                <thead><tr><th>Code</th><th>Name</th><th>Stage</th><th>Last assessed</th><th>Latest grade</th><th></th></tr></thead>
                 <tbody>
                     ${sortedRoster.map(r => {
                         const s = r.students; if (!s) return '';
                         const a = latest.get(s.id);
+                        const stageChip = stageChipFor(s);
                         return `<tr>
                             <td>${s.student_code}</td>
                             <td>${s.first_name} ${s.last_name}</td>
+                            <td>${stageChip}</td>
                             <td>${a?.assessed_on || '—'}</td>
                             <td>${a ? '<span class="chip">' + a.overall_grade + ' (' + a.overall_score + ')</span>' : '<span class="chip warn">not yet</span>'}</td>
                             <td><a class="btn btn-primary" href="#/assessments?class=${classId}&student=${s.id}">Grade</a></td>
                         </tr>`;
-                    }).join('') || '<tr><td colspan="5"><em>No students enrolled in this class.</em></td></tr>'}
+                    }).join('') || '<tr><td colspan="6"><em>No students enrolled in this class.</em></td></tr>'}
                 </tbody>
             </table>
         </div>`;
 }
 
 /* --------------------------------------------------------------------- */
+/* Dispatcher: branch on the student's reading_stage. */
 async function renderForm(root, sb, profile, classId, studentId) {
-    const [{ data: student }, { data: cls }, { data: surahs }, { data: recent }] = await Promise.all([
-        sb.from('students').select('id, first_name, last_name, student_code').eq('id', studentId).single(),
-        sb.from('classes').select('id, name, level').eq('id', classId).single(),
+    const { data: student } = await sb.from('students')
+        .select('id, first_name, last_name, student_code, reading_stage, qaidah_page')
+        .eq('id', studentId).single();
+    const { data: cls } = await sb.from('classes').select('id, name, level').eq('id', classId).single();
+
+    if (!student) { root.innerHTML = '<div class="alert alert-danger">Student not found.</div>'; return; }
+
+    const stage = student.reading_stage;
+    if (stage === 'qaidah' || stage === 'juz') {
+        return renderQaidahForm(root, sb, profile, classId, student, cls);
+    }
+    if (stage === 'quran') {
+        return renderQuranForm(root, sb, profile, classId, student, cls);
+    }
+    // Stage not yet set — guide the user to set it.
+    root.innerHTML = `
+        <p style="margin-top:0; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+            <a class="back-link" href="#/assessments?class=${classId}"><span class="arrow">&larr;</span> ${cls?.name || 'Class'}</a>
+            <strong>${student.first_name} ${student.last_name}</strong>
+            <span class="chip">${student.student_code}</span>
+        </p>
+        <div class="alert alert-info">
+            This student's reading stage hasn't been set yet. Open <strong>Students</strong> in the sidebar,
+            edit this student, and choose their stage (Qaidah / Juz Amm, 1, 2 / Quran). Then come back to grade them.
+        </div>`;
+}
+
+/* --------------------------------------------------------------------- */
+/* Helper: render a 0-5 scoring form for any module (Quran or Qaidah).  */
+function buildScoringForm({ MODULE, extraTopRow, totalMax, beforeSave, recentRows, recentColsHead, helpRows }) {
+    return `
+        <form id="assess-form">
+            <div class="toolbar">
+                <label class="field">Date
+                    <input type="date" name="assessed_on" value="${new Date().toISOString().slice(0, 10)}" required>
+                </label>
+                ${extraTopRow}
+            </div>
+
+            <fieldset style="border:1px solid var(--border); border-radius: var(--radius); padding: 16px">
+                <legend style="color: var(--green-700); font-weight: 600">0–5 Category Scoring</legend>
+                ${MODULE.CATEGORIES.map(c => `
+                    <div class="grade-row">
+                        <div>
+                            <strong>${MODULE.CATEGORY_LABELS?.[c] || (c.charAt(0).toUpperCase() + c.slice(1).replace(/_/g, ' '))}</strong>
+                            <div class="text-muted" style="font-size:12px">${MODULE.CATEGORY_HELP?.[c] || ''}</div>
+                        </div>
+                        <div class="grade-buttons" data-field="${c}">
+                            ${[0,1,2,3,4,5].map(i => `<button type="button" class="grade-btn" data-val="${i}">${i}</button>`).join('')}
+                        </div>
+                        <input type="hidden" name="${c}" required>
+                    </div>
+                `).join('')}
+            </fieldset>
+
+            <label class="field" style="margin-top: 14px">Teacher comments
+                <textarea name="comments" rows="3" placeholder="Strengths, what to work on next…"></textarea>
+            </label>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; gap:10px; flex-wrap: wrap">
+                <div id="live-summary" class="chip">Total: 0 / ${totalMax} &middot; Average: 0.00 &middot; Not Attempted</div>
+                <button class="btn btn-primary btn-lg" type="submit">Save assessment</button>
+            </div>
+            <div id="alert"></div>
+        </form>`;
+}
+
+/* --------------------------------------------------------------------- */
+async function renderQuranForm(root, sb, profile, classId, student, cls) {
+    const MODULE = Quran;
+    const totalMax = MODULE.CATEGORIES.length * 5;
+    const [{ data: surahs }, { data: recent }] = await Promise.all([
         sb.from('surahs').select('id, number, name_transliteration').order('number'),
         sb.from('assessments')
             .select('id, assessed_on, overall_score, overall_grade, quran_recitation_grades(fluency,makharij,tajweed,waqf,accuracy)')
-            .eq('student_id', studentId).eq('module_type', 'quran_recitation')
+            .eq('student_id', student.id).eq('module_type', 'quran_recitation')
             .order('assessed_on', { ascending: false }).limit(5),
     ]);
+
+    const extraTopRow = `
+        <label class="field">Surah
+            <select name="surah_id">
+                <option value="">—</option>
+                ${(surahs || []).map(s => `<option value="${s.id}">${s.number}. ${s.name_transliteration}</option>`).join('')}
+            </select>
+        </label>
+        <label class="field">Ayah from<input type="number" min="1" name="ayah_from"></label>
+        <label class="field">Ayah to<input   type="number" min="1" name="ayah_to"></label>`;
 
     root.innerHTML = `
         <p style="margin-top:0; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
             <a class="back-link" href="#/assessments"><span class="arrow">&larr;</span> Classes</a>
             <a class="back-link" href="#/assessments?class=${classId}"><span class="arrow">&larr;</span> ${cls?.name || 'Class'}</a>
-            <strong>${student?.first_name} ${student?.last_name}</strong>
-            <span class="chip">${student?.student_code}</span>
+            <strong>${student.first_name} ${student.last_name}</strong>
+            <span class="chip">${student.student_code}</span>
+            <span class="chip gold">Quran</span>
         </p>
-
         <div class="grid-app">
             <div class="card span-12">
                 <h3 style="margin-top:0">New Quran Recitation assessment</h3>
-                <form id="assess-form">
-                    <div class="toolbar">
-                        <label class="field">Date
-                            <input type="date" name="assessed_on" value="${new Date().toISOString().slice(0, 10)}" required>
-                        </label>
-                        <label class="field">Surah
-                            <select name="surah_id">
-                                <option value="">—</option>
-                                ${(surahs || []).map(s => `<option value="${s.id}">${s.number}. ${s.name_transliteration}</option>`).join('')}
-                            </select>
-                        </label>
-                        <label class="field">Ayah from<input type="number" min="1" name="ayah_from"></label>
-                        <label class="field">Ayah to<input   type="number" min="1" name="ayah_to"></label>
-                    </div>
-
-                    <fieldset style="border:1px solid var(--border); border-radius: var(--radius); padding: 16px">
-                        <legend style="color: var(--green-700); font-weight: 600">0–5 Category Scoring</legend>
-                        ${CATEGORIES.map(c => `
-                            <div class="grade-row">
-                                <div>
-                                    <strong style="text-transform:capitalize">${c}</strong>
-                                    <div class="text-muted" style="font-size:12px">${categoryHelp(c)}</div>
-                                </div>
-                                <div class="grade-buttons" data-field="${c}">
-                                    ${[0,1,2,3,4,5].map(i => `<button type="button" class="grade-btn" data-val="${i}">${i}</button>`).join('')}
-                                </div>
-                                <input type="hidden" name="${c}" required>
-                            </div>
-                        `).join('')}
-                    </fieldset>
-
-                    <label class="field" style="margin-top: 14px">Teacher comments
-                        <textarea name="comments" rows="3" placeholder="Strengths, what to work on next…"></textarea>
-                    </label>
-
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; gap:10px; flex-wrap: wrap">
-                        <div id="live-summary" class="chip">Average: 0.00 · Not Attempted</div>
-                        <button class="btn btn-primary btn-lg" type="submit">Save assessment</button>
-                    </div>
-                    <div id="alert"></div>
-                </form>
+                ${buildScoringForm({ MODULE, extraTopRow, totalMax })}
             </div>
-
             <div class="card span-6">
                 <h3 style="margin-top:0">Recent assessments</h3>
                 <table class="table">
@@ -225,25 +270,101 @@ async function renderForm(root, sb, profile, classId, studentId) {
                 <h3 style="margin-top:0">Marking guidelines</h3>
                 <table class="table">
                     <tbody>
-                        ${Object.entries(GUIDELINES).map(([s, m]) => `<tr><td><strong>${s}</strong></td><td>${m}</td></tr>`).join('')}
+                        ${Object.entries(MODULE.GUIDELINES).map(([s, m]) => `<tr><td><strong>${s}</strong></td><td>${m}</td></tr>`).join('')}
                     </tbody>
                 </table>
             </div>
         </div>`;
 
-    const form = document.getElementById('assess-form');
+    wireScoringForm(root, sb, profile, classId, student, MODULE, totalMax, 'quran_recitation.assessed');
+}
+
+/* --------------------------------------------------------------------- */
+async function renderQaidahForm(root, sb, profile, classId, student, cls) {
+    const MODULE = Qaidah;
+    const totalMax = MODULE.CATEGORIES.length * 5;
+    const stageLabel = student.reading_stage === 'juz' ? 'Juz Amm, 1, 2' : 'Qaidah';
+
+    const { data: recent } = await sb.from('assessments')
+        .select('id, assessed_on, overall_score, overall_grade, qaidah_grades(letter_recognition,joining_reading,makharij_tajweed,fluency_confidence,total_score,page_at_assessment)')
+        .eq('student_id', student.id).eq('module_type', 'qaidah_reading')
+        .order('assessed_on', { ascending: false }).limit(5);
+
+    const extraTopRow = `
+        <label class="field">Current page
+            <input type="number" min="0" max="200" name="qaidah_page" value="${student.qaidah_page ?? ''}" placeholder="e.g. 12">
+        </label>`;
+
+    root.innerHTML = `
+        <p style="margin-top:0; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+            <a class="back-link" href="#/assessments"><span class="arrow">&larr;</span> Classes</a>
+            <a class="back-link" href="#/assessments?class=${classId}"><span class="arrow">&larr;</span> ${cls?.name || 'Class'}</a>
+            <strong>${student.first_name} ${student.last_name}</strong>
+            <span class="chip">${student.student_code}</span>
+            <span class="chip gold">${stageLabel}</span>
+            ${student.qaidah_page != null ? '<span class="chip">page ' + student.qaidah_page + '</span>' : ''}
+        </p>
+        <div class="grid-app">
+            <div class="card span-12">
+                <h3 style="margin-top:0">New ${stageLabel} assessment</h3>
+                <p class="text-muted" style="margin-top:0">
+                    Update the page number if the student has moved on. Saving here also updates the student's current page in their record.
+                </p>
+                ${buildScoringForm({ MODULE, extraTopRow, totalMax })}
+            </div>
+            <div class="card span-6">
+                <h3 style="margin-top:0">Recent assessments</h3>
+                <table class="table">
+                    <thead><tr><th>Date</th><th>Pg</th><th>LR</th><th>JR</th><th>M&amp;T</th><th>F&amp;C</th><th>Tot</th><th>Avg</th><th>Grade</th></tr></thead>
+                    <tbody>
+                        ${(recent || []).map(r => {
+                            const g = Array.isArray(r.qaidah_grades) ? r.qaidah_grades[0] : r.qaidah_grades;
+                            return `<tr>
+                                <td>${r.assessed_on}</td>
+                                <td>${g?.page_at_assessment ?? ''}</td>
+                                <td>${g?.letter_recognition  ?? ''}</td>
+                                <td>${g?.joining_reading     ?? ''}</td>
+                                <td>${g?.makharij_tajweed    ?? ''}</td>
+                                <td>${g?.fluency_confidence  ?? ''}</td>
+                                <td><strong>${g?.total_score ?? ''}</strong></td>
+                                <td>${r.overall_score ?? ''}</td>
+                                <td>${r.overall_grade ?? ''}</td>
+                            </tr>`;
+                        }).join('') || '<tr><td colspan="9"><em>No previous assessments.</em></td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+            <div class="card span-6">
+                <h3 style="margin-top:0">Marking guidelines</h3>
+                <table class="table">
+                    <tbody>
+                        ${Object.entries(MODULE.GUIDELINES).map(([s, m]) => `<tr><td><strong>${s}</strong></td><td>${m}</td></tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>`;
+
+    wireScoringForm(root, sb, profile, classId, student, MODULE, totalMax, 'qaidah_reading.assessed');
+}
+
+/* --------------------------------------------------------------------- */
+/* Shared form behaviour: 0-5 button group clicks, live total/avg, submit. */
+function wireScoringForm(root, sb, profile, classId, student, MODULE, totalMax, auditAction) {
+    const form    = document.getElementById('assess-form');
     const summary = document.getElementById('live-summary');
 
     function currentScores() {
         const s = {};
-        for (const c of CATEGORIES) s[c] = Number(form.elements[c].value || 0);
+        for (const c of MODULE.CATEGORIES) s[c] = Number(form.elements[c].value || 0);
         return s;
     }
     function refreshSummary() {
         const s = currentScores();
-        const avg = calculateAverage(s);
-        const b = resolveBand(avg);
-        summary.textContent = `Average: ${avg.toFixed(2)} · ${b.label}`;
+        let total = 0;
+        for (const c of MODULE.CATEGORIES) total += Number(s[c] || 0);
+        const avg = MODULE.calculateAverage(s);
+        const b   = MODULE.resolveBand(avg);
+        summary.textContent = `Total: ${total} / ${totalMax} · Average: ${avg.toFixed(2)} · ${b.label}`;
         summary.style.background = b.color + '22';
         summary.style.color = b.color;
     }
@@ -264,7 +385,7 @@ async function renderForm(root, sb, profile, classId, studentId) {
         e.preventDefault();
         const alertBox = document.getElementById('alert');
         alertBox.innerHTML = '';
-        for (const c of CATEGORIES) {
+        for (const c of MODULE.CATEGORIES) {
             if (form.elements[c].value === '') {
                 alertBox.innerHTML = `<div class="alert alert-danger">Please score every category before saving.</div>`;
                 return;
@@ -272,7 +393,7 @@ async function renderForm(root, sb, profile, classId, studentId) {
         }
         try {
             const payload = Object.fromEntries(new FormData(form).entries());
-            payload.student_id = studentId;
+            payload.student_id = student.id;
             payload.class_id   = classId;
             payload.teacher_id = profile.teacher_id;
 
@@ -291,18 +412,18 @@ async function renderForm(root, sb, profile, classId, studentId) {
                 }
             }
 
-            const id = await recordAssessment(sb, payload);
-            await audit('quran_recitation.assessed', 'assessment', id);
+            const id = await MODULE.recordAssessment(sb, payload);
+            await audit(auditAction, 'assessment', id);
 
             const scores = currentScores();
-            const avg = calculateAverage(scores);
-            const weak = identifyWeaknesses(scores);
-            const recs = generateRecommendations(scores, avg);
+            const avg  = MODULE.calculateAverage(scores);
+            const weak = MODULE.identifyWeaknesses(scores);
+            const recs = MODULE.generateRecommendations(scores, avg);
             toast.success(`Assessment saved · avg ${avg.toFixed(2)}`);
             alertBox.innerHTML = `
                 <div class="alert alert-success">
                     Saved. Average <strong>${avg.toFixed(2)}</strong>.
-                    ${weak.length ? '<br><strong>Weaknesses:</strong> ' + weak.join(', ') : ''}
+                    ${weak.length ? '<br><strong>Weaknesses:</strong> ' + weak.map(w => MODULE.CATEGORY_LABELS?.[w] || w).join(', ') : ''}
                     ${recs.length ? '<br><strong>Recommendations:</strong><ul style="margin:6px 0 0 18px">' + recs.map(r => `<li>${r}</li>`).join('') + '</ul>' : ''}
                 </div>`;
             form.reset();
@@ -316,12 +437,10 @@ async function renderForm(root, sb, profile, classId, studentId) {
     });
 }
 
-function categoryHelp(c) {
-    return {
-        fluency:  'Smooth, confident flow without stops.',
-        makharij: 'Correct articulation points of letters.',
-        tajweed:  'Idgham, Ikhfa, Madd, Ghunnah, Qalqalah etc.',
-        waqf:     'Stopping rules and signs.',
-        accuracy: 'No letters missed, added, or substituted.',
-    }[c] || '';
+/* --------------------------------------------------------------------- */
+function stageChipFor(s) {
+    if (s.reading_stage === 'quran')  return '<span class="chip gold">Quran</span>';
+    if (s.reading_stage === 'qaidah') return '<span class="chip">Qaidah' + (s.qaidah_page != null ? ' · p' + s.qaidah_page : '') + '</span>';
+    if (s.reading_stage === 'juz')    return '<span class="chip">Juz Amm, 1, 2</span>';
+    return '<span class="chip warn">stage not set</span>';
 }

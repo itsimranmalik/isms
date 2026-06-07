@@ -14,7 +14,7 @@ export async function render(root, { profile, supabase }) {
                 <span class="text-muted" id="count" style="margin-left:auto"></span>
             </div>
             <table class="table" id="students-table">
-                <thead><tr><th>Code</th><th>Name</th><th>Guardian</th><th>Phone</th><th>Login?</th><th>Status</th><th></th></tr></thead>
+                <thead><tr><th>Code</th><th>Name</th><th>Stage</th><th>Guardian</th><th>Phone</th><th>Login?</th><th>Status</th><th></th></tr></thead>
                 <tbody></tbody>
             </table>
         </div>
@@ -42,6 +42,20 @@ export async function render(root, { profile, supabase }) {
                         <label>Guardian email<input type="email" name="guardian_email"></label>
                     </div>
                     <label>Address<textarea name="address" rows="2"></textarea></label>
+
+                    <div class="row">
+                        <label>Reading stage
+                            <select name="reading_stage">
+                                <option value="">— not set —</option>
+                                <option value="qaidah">Qaidah</option>
+                                <option value="juz">Juz Amm, 1, 2</option>
+                                <option value="quran">Quran</option>
+                            </select>
+                        </label>
+                        <label>Qaidah page
+                            <input type="number" min="0" max="200" name="qaidah_page" placeholder="only for Qaidah / Juz">
+                        </label>
+                    </div>
 
                     <fieldset id="creds-new" style="border:1px solid var(--border); border-radius:8px; padding:14px; margin-top:6px">
                         <legend style="color:var(--green-700); font-weight:600; padding:0 8px">Login credentials</legend>
@@ -93,6 +107,7 @@ export async function render(root, { profile, supabase }) {
             <tr>
                 <td>${s.student_code}</td>
                 <td>${s.first_name} ${s.last_name}</td>
+                <td>${stageChip(s)}</td>
                 <td>${s.guardian_name || ''}</td>
                 <td>${s.guardian_phone || ''}</td>
                 <td>${s.user_id
@@ -101,7 +116,7 @@ export async function render(root, { profile, supabase }) {
                 <td><span class="chip ${s.status === 'active' ? '' : 'warn'}">${s.status}</span></td>
                 <td>${canWrite ? `<button class="btn edit-btn" data-id="${s.id}">Edit</button>
                                    <button class="btn del-btn"  data-id="${s.id}">Delete</button>` : ''}</td>
-            </tr>`).join('') || '<tr><td colspan="7"><em>No students.</em></td></tr>';
+            </tr>`).join('') || '<tr><td colspan="8"><em>No students.</em></td></tr>';
 
         tbody.querySelectorAll('.edit-btn').forEach(b => b.addEventListener('click', () => openEdit(b.dataset.id)));
         tbody.querySelectorAll('.del-btn').forEach(b => b.addEventListener('click', () => del(b.dataset.id)));
@@ -224,6 +239,13 @@ export async function render(root, { profile, supabase }) {
             saveBtn.textContent = 'Save';
         }
     });
+
+    function stageChip(s) {
+        if (s.reading_stage === 'quran')  return '<span class="chip gold">Quran</span>';
+        if (s.reading_stage === 'qaidah') return '<span class="chip">Qaidah' + (s.qaidah_page != null ? ' · p' + s.qaidah_page : '') + '</span>';
+        if (s.reading_stage === 'juz')    return '<span class="chip">Juz Amm, 1, 2</span>';
+        return '<span class="chip warn">not set</span>';
+    }
 
     load();
 }

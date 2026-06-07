@@ -1,4 +1,4 @@
-/* Reports — class drill-down with Quran / Memorisation / Daily Duas / Namaz Duas tabs.
+/* Reports — class drill-down with Quran / Qaidah / Memorisation / Daily Duas / Namaz Duas tabs.
  * Each tab supports CSV download; Memorisation + Daily/Namaz Duas tabs include class PDF. */
 import { exportStudentReportPdf, exportClassExcel, exportClassCsv,
          exportClassMemorisationPdf, exportClassDuasPdf } from '../modules/exporters.js';
@@ -10,7 +10,7 @@ export async function render(root, { profile, supabase }) {
 
     const params = new URLSearchParams((location.hash.split('?')[1]) || '');
     const classId = params.get('class') ? Number(params.get('class')) : null;
-    const tab     = params.get('tab') || 'quran';   // quran | memorisation | duas-daily | duas-namaz
+    const tab     = params.get('tab') || 'quran';   // quran | qaidah | memorisation | duas-daily | duas-namaz
     if (!classId) return renderClassList(root, supabase, profile);
     return renderClassReport(root, supabase, profile, classId, tab);
 }
@@ -47,7 +47,7 @@ async function renderClassReport(root, sb, profile, classId, tab) {
     const [{ data: cls }, { data: roster }, { data: settings }, { data: allDuas }] = await Promise.all([
         sb.from('classes').select('name, level').eq('id', classId).single(),
         sb.from('class_students')
-            .select('students(id, first_name, last_name, student_code, date_of_birth, guardian_name)')
+            .select('students(id, first_name, last_name, student_code, date_of_birth, guardian_name, reading_stage, qaidah_page)')
             .eq('class_id', classId),
         sb.from('settings').select('school_name, logo_url').eq('id', 1).maybeSingle(),
         sb.from('duas').select('id, category'),
@@ -56,17 +56,21 @@ async function renderClassReport(root, sb, profile, classId, tab) {
     const schoolName = settings?.school_name || 'Madrasa';
     const logoUrl    = settings?.logo_url || '';
 
-    const [{ data: qrAsses }, { data: memProg }, { data: duaProg }] = ids.length
+    const [{ data: qrAsses }, { data: qdAsses }, { data: memProg }, { data: duaProg }] = ids.length
         ? await Promise.all([
             sb.from('assessments').select('student_id, overall_score, overall_grade, assessed_on')
                 .in('student_id', ids).eq('module_type', 'quran_recitation')
+                .order('assessed_on', { ascending: false }),
+            sb.from('assessments')
+                .select('student_id, overall_score, overall_grade, assessed_on, qaidah_grades(total_score, page_at_assessment, letter_recognition, joining_reading, makharij_tajweed, fluency_confidence)')
+                .in('student_id', ids).eq('module_type', 'qaidah_reading')
                 .order('assessed_on', { ascending: false }),
             sb.from('memorisation_progress')
                 .select('student_id, status, memorisation_score, quality_score'),
             sb.from('dua_progress')
                 .select('student_id, dua_id, status, memorisation_score, tajweed_score, score'),
         ])
-        : [{ data: [] }, { data: [] }, { data: [] }];
+        : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }];
 
     const summary = new Map();
     for (const r of (roster || [])) {
@@ -74,6 +78,7 @@ async function renderClassReport(root, sb, profile, classId, tab) {
         summary.set(r.students.id, {
             student: r.students,
             qr: [],
+            qd: [],
             mem: { applicable: 0, completed: 0, memSum: 0, memCount: 0, tajSum: 0, tajCount: 0 },
             duasDaily: { applicable: 0, completed: 0, memSum: 0, memCount: 0, tajSum: 0, tajCount: 0 },
             duasNamaz: { applicable: 0, completed: 0, memSum: 0, memCount: 0, tajSum: 0, tajCount: 0 },
@@ -83,6 +88,9 @@ async function renderClassReport(root, sb, profile, classId, tab) {
 
     for (const a of (qrAsses || [])) {
         const s = summary.get(a.student_id); if (s) s.qr.push(a);
+    }
+    for (const a of (qdAsses || [])) {
+        const s = summary.get(a.student_id); if (s) s.qd.push(a);
     }
     for (const m of (memProg || [])) {
         const s = summary.get(m.student_id); if (!s) continue;
@@ -130,6 +138,7 @@ async function renderClassReport(root, sb, profile, classId, tab) {
 
         <div class="toolbar" style="margin-bottom:12px; flex-wrap:wrap">
             ${tabBtn('quran',       'Quran Recitation')}
+            ${tabBtn('qaidah',      'Qaidah / Juz')}
             ${tabBtn('memorisation','Memorisation')}
             ${tabBtn('duas-daily',  'Daily Duas')}
             ${tabBtn('duas-namaz',  'Namaz Duas')}
@@ -139,10 +148,11 @@ async function renderClassReport(root, sb, profile, classId, tab) {
 
     const pane = document.getElementById('report-pane');
     const className = cls?.name || 'class';
-    if (tab === 'quran')              renderQuranTab(pane, sorted, classId, className, schoolName, logoUrl, sb);
-    else if (tab === 'memorisation')  renderMemTab  (pane, sorted, className, schoolName, logoUrl);
-    else if (tab === 'duas-daily')    renderDuaTab  (pane, sorted, 'daily', className, schoolName, logoUrl);
-    else if (tab === 'duas-namaz')    renderDuaTab  (pane, sorted, 'namaz', className, schoolName, logoUrl);
+    if (tab === 'quran')              renderQuranTab (pane, sorted, classId, className, schoolName, logoUrl, sb);
+    else if (tab === 'qaidah')        renderQaidahTab(pane, sorted, className);
+    else if (tab === 'memorisation')  renderMemTab   (pane, sorted, className, schoolName, logoUrl);
+    else if (tab === 'duas-daily')    renderDuaTab   (pane, sorted, 'daily', className, schoolName, logoUrl);
+    else if (tab === 'duas-namaz')    renderDuaTab   (pane, sorted, 'namaz', className, schoolName, logoUrl);
     else                              pane.innerHTML = '<div class="alert alert-danger">Unknown tab.</div>';
 }
 
@@ -206,6 +216,93 @@ function renderQuranTab(pane, sorted, classId, className, schoolName, logoUrl, s
     pane.querySelectorAll('.pdf-btn').forEach(b => b.addEventListener('click', async () => {
         await runExport(pane, () => downloadStudentPdf(sb, Number(b.dataset.id), schoolName, logoUrl), 'PDF');
     }));
+}
+
+/* ----- Qaidah / Juz tab -------------------------------------------- */
+function renderQaidahTab(pane, sorted, className) {
+    // Only Qaidah / Juz students belong here; Quran students sit in their own tab.
+    const qd = sorted.filter(r => r.student.reading_stage === 'qaidah' || r.student.reading_stage === 'juz');
+
+    const rows = qd.map(r => {
+        const latest   = r.qd[0];
+        const previous = r.qd[1];
+        const g = latest && (Array.isArray(latest.qaidah_grades) ? latest.qaidah_grades[0] : latest.qaidah_grades);
+        let trend = '';
+        if (latest && previous) {
+            const diff = Number(latest.overall_score) - Number(previous.overall_score);
+            if (diff > 0.05)       trend = '<span class="chip" style="background:#10B98122;color:#059669">↑ +' + diff.toFixed(2) + '</span>';
+            else if (diff < -0.05) trend = '<span class="chip" style="background:#DC262622;color:#DC2626">↓ ' + diff.toFixed(2) + '</span>';
+            else                   trend = '<span class="chip" style="background:#94A3B822;color:#64748B">→ flat</span>';
+        } else if (latest) {
+            trend = '<span class="chip">first</span>';
+        }
+        return {
+            student_code:       r.student.student_code,
+            first_name:         r.student.first_name,
+            last_name:          r.student.last_name,
+            stage:              r.student.reading_stage === 'juz' ? 'Juz Amm, 1, 2' : 'Qaidah',
+            page:               g?.page_at_assessment ?? r.student.qaidah_page ?? '',
+            assessed_on:        latest?.assessed_on || '',
+            total_score:        g?.total_score ?? '',
+            average_score:      latest?.overall_score ?? '',
+            grade:              latest?.overall_grade ?? '',
+            assessments_count:  r.qd.length,
+            trend,
+        };
+    });
+
+    pane.innerHTML = `
+        <div class="card">
+            <div class="toolbar">
+                <h3 style="margin:0">Qaidah / Juz — latest score per student</h3>
+                <span style="margin-left:auto"></span>
+                <button class="btn" id="qd-csv">CSV</button>
+            </div>
+            ${qd.length === 0
+                ? '<div class="alert alert-info">No Qaidah / Juz students in this class.</div>'
+                : `<table class="table">
+                    <thead><tr>
+                        <th>Code</th><th>Student</th><th>Stage</th><th>Page</th>
+                        <th>Last assessed</th><th>Total / 20</th><th>Avg</th>
+                        <th>Grade</th><th>Trend</th><th>#</th>
+                    </tr></thead>
+                    <tbody>
+                        ${rows.map(r => `<tr>
+                            <td>${r.student_code}</td>
+                            <td>${r.first_name} ${r.last_name}</td>
+                            <td><span class="chip">${r.stage}</span></td>
+                            <td>${r.page || '—'}</td>
+                            <td>${r.assessed_on || '—'}</td>
+                            <td>${r.total_score === '' ? '—' : '<strong>' + r.total_score + '</strong>'}</td>
+                            <td>${r.average_score === '' ? '—' : r.average_score}</td>
+                            <td>${r.grade ? '<span class="chip">' + r.grade + '</span>' : '<span class="chip warn">not yet</span>'}</td>
+                            <td>${r.trend}</td>
+                            <td>${r.assessments_count}</td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>`}
+        </div>
+        <div id="export-status"></div>`;
+
+    const btn = pane.querySelector('#qd-csv');
+    if (btn) btn.addEventListener('click', () => downloadCsv(className + '-qaidah.csv',
+        [['Code','Student','Stage','Page','Last assessed','Total /20','Average','Grade','Assessments'],
+         ...rows.map(r => [r.student_code, r.first_name + ' ' + r.last_name, r.stage, r.page,
+                           r.assessed_on, r.total_score, r.average_score, r.grade, r.assessments_count])]));
+}
+
+function downloadCsv(filename, lines) {
+    const csv = lines.map(row => row.map(v => {
+        if (v == null) return '';
+        const s = String(v).replace(/"/g, '""');
+        return /[",\n]/.test(s) ? `"${s}"` : s;
+    }).join(',')).join('\r\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
 /* ----- Memorisation tab -------------------------------------------- */
