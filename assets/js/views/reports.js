@@ -519,42 +519,60 @@ function downloadCsv(filename, headers, rows) {
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
-/* Build a single CSV with one section per reading stage (Qaidah / Juz / Quran).
- * Students with no reading_stage (Hifz etc.) go into a final "Other / Hifz" section.
+/* Build a comprehensive class CSV with one section per assessment area:
+ *   Quran Recitation, Qaidah, Juz Amm 1-2, Memorisation, Daily Duas, Namaz Duas,
+ *   and a roster of any students without a reading stage set (Hifz etc.).
+ * Every section header is emitted even if empty so the file makes its structure
+ * obvious to the reader. Filename: <class>-all-stages.csv
  */
 function exportAllStagesCsv(sorted, className) {
-    function quranRowsFor(filterFn) {
-        return sorted.filter(filterFn).map(r => {
-            const a = r.qr[0];
-            return [
-                r.student.student_code,
-                `${r.student.first_name} ${r.student.last_name}`,
-                a?.assessed_on || '',
-                a?.overall_score ?? '',
-                a?.overall_grade ?? '',
-                r.qr.length,
-            ];
-        });
-    }
-    function qaidahRowsFor(filterFn) {
-        return sorted.filter(filterFn).map(r => {
-            const a = r.qd[0];
-            const g = a && (Array.isArray(a.qaidah_grades) ? a.qaidah_grades[0] : a.qaidah_grades);
-            return [
-                r.student.student_code,
-                `${r.student.first_name} ${r.student.last_name}`,
-                g?.page_at_assessment ?? r.student.qaidah_page ?? '',
-                a?.assessed_on || '',
-                g?.total_score ?? '',
-                a?.overall_score ?? '',
-                a?.overall_grade ?? '',
-                r.qd.length,
-            ];
-        });
-    }
+    const quranRowsFor = (filterFn) => sorted.filter(filterFn).map(r => {
+        const a = r.qr[0];
+        return [
+            r.student.student_code,
+            `${r.student.first_name} ${r.student.last_name}`,
+            a?.assessed_on || '',
+            a?.overall_score ?? '',
+            a?.overall_grade ?? '',
+            r.qr.length,
+        ];
+    });
+    const qaidahRowsFor = (filterFn) => sorted.filter(filterFn).map(r => {
+        const a = r.qd[0];
+        const g = a && (Array.isArray(a.qaidah_grades) ? a.qaidah_grades[0] : a.qaidah_grades);
+        return [
+            r.student.student_code,
+            `${r.student.first_name} ${r.student.last_name}`,
+            g?.page_at_assessment ?? r.student.qaidah_page ?? '',
+            a?.assessed_on || '',
+            g?.total_score ?? '',
+            a?.overall_score ?? '',
+            a?.overall_grade ?? '',
+            r.qd.length,
+        ];
+    });
+    const memRow = (r) => {
+        const m = r.mem;
+        const memPct = m.memCount ? Math.round(m.memSum / m.memCount / 5 * 100) : 0;
+        const tajPct = m.tajCount ? Math.round(m.tajSum / m.tajCount / 5 * 100) : 0;
+        const overall = m.memCount && m.tajCount ? Math.round((memPct + tajPct) / 2)
+                      : m.memCount ? memPct : m.tajCount ? tajPct : 0;
+        return [r.student.student_code, `${r.student.first_name} ${r.student.last_name}`,
+                m.applicable, m.completed, memPct + '%', tajPct + '%', overall + '%'];
+    };
+    const duaRow = (r, kind) => {
+        const slot = kind === 'namaz' ? r.duasNamaz : r.duasDaily;
+        const memPct = slot.memCount ? Math.round(slot.memSum / slot.memCount / 5 * 100) : 0;
+        const tajPct = slot.tajCount ? Math.round(slot.tajSum / slot.tajCount / 5 * 100) : 0;
+        const overall = slot.memCount && slot.tajCount ? Math.round((memPct + tajPct) / 2)
+                      : slot.memCount ? memPct : slot.tajCount ? tajPct : 0;
+        return [r.student.student_code, `${r.student.first_name} ${r.student.last_name}`,
+                slot.applicable, slot.completed, memPct + '%', tajPct + '%', overall + '%'];
+    };
+
     const sections = [
         {
-            title:   'Quran',
+            title:   'Quran Recitation',
             headers: ['Code', 'Student', 'Last assessed', 'Average / 5', 'Grade', '# assessments'],
             rows:    quranRowsFor(r => r.student.reading_stage === 'quran'),
         },
@@ -569,20 +587,40 @@ function exportAllStagesCsv(sorted, className) {
             rows:    qaidahRowsFor(r => r.student.reading_stage === 'juz'),
         },
         {
-            title:   'Other / Hifz (no reading stage set)',
+            title:   'Memorisation (Hifz)',
+            headers: ['Code', 'Student', 'Applicable', 'Completed', 'Memorisation %', 'Tajweed %', 'Overall %'],
+            rows:    sorted.map(memRow),
+        },
+        {
+            title:   'Daily Duas',
+            headers: ['Code', 'Student', 'Applicable', 'Completed', 'Memorisation %', 'Tajweed %', 'Overall %'],
+            rows:    sorted.map(r => duaRow(r, 'daily')),
+        },
+        {
+            title:   'Namaz Duas',
+            headers: ['Code', 'Student', 'Applicable', 'Completed', 'Memorisation %', 'Tajweed %', 'Overall %'],
+            rows:    sorted.map(r => duaRow(r, 'namaz')),
+        },
+        {
+            title:   'Roster (no reading stage set)',
             headers: ['Code', 'Student'],
             rows:    sorted.filter(r => !r.student.reading_stage)
                           .map(r => [r.student.student_code, `${r.student.first_name} ${r.student.last_name}`]),
         },
     ];
-    downloadSectionedCsv(`${className}-all-stages.csv`, sections);
+    // Show every section header even if empty so the structure is obvious.
+    downloadSectionedCsv(`${className}-all-stages.csv`, sections, { keepEmpty: true });
 }
 
 /* Write a multi-section CSV — each section gets its own header row above the data.
  * sections: [ { title, headers, rows }, ... ]
- * Empty sections are skipped so the file is tidy.
+ * Options:
+ *   keepEmpty (default false) — when true, empty sections still emit their
+ *     "=== title ===" + header row, with a "(no data)" placeholder underneath.
+ *     Useful for the comprehensive class report so readers see the full layout.
  */
-function downloadSectionedCsv(filename, sections) {
+function downloadSectionedCsv(filename, sections, opts = {}) {
+    const keepEmpty = !!opts.keepEmpty;
     const escapeCell = (v) => {
         if (v == null) return '';
         const s = String(v).replace(/"/g, '""');
@@ -590,11 +628,16 @@ function downloadSectionedCsv(filename, sections) {
     };
     const out = [];
     for (const sec of sections) {
-        if (!sec.rows || sec.rows.length === 0) continue;
+        const hasRows = sec.rows && sec.rows.length > 0;
+        if (!hasRows && !keepEmpty) continue;
         if (out.length > 0) out.push('');                       // blank separator row
         out.push(escapeCell('=== ' + sec.title + ' ==='));      // section header in column A
         out.push(sec.headers.map(escapeCell).join(','));
-        for (const row of sec.rows) out.push(row.map(escapeCell).join(','));
+        if (hasRows) {
+            for (const row of sec.rows) out.push(row.map(escapeCell).join(','));
+        } else {
+            out.push(escapeCell('(no data)'));
+        }
     }
     const blob = new Blob(['﻿' + out.join('\r\n')], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
