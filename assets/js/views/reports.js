@@ -142,9 +142,15 @@ async function renderClassReport(root, sb, profile, classId, tab) {
             ${tabBtn('memorisation','Memorisation')}
             ${tabBtn('duas-daily',  'Daily Duas')}
             ${tabBtn('duas-namaz',  'Namaz Duas')}
+            <span style="margin-left:auto"></span>
+            <button class="btn" id="all-stages-csv" title="Export Qaidah, Juz and Quran in one file with section headers">All stages CSV</button>
         </div>
 
         <div id="report-pane"></div>`;
+
+    document.getElementById('all-stages-csv').addEventListener('click', () => {
+        exportAllStagesCsv(sorted, className);
+    });
 
     const pane = document.getElementById('report-pane');
     const className = cls?.name || 'class';
@@ -285,24 +291,20 @@ function renderQaidahTab(pane, sorted, className) {
         <div id="export-status"></div>`;
 
     const btn = pane.querySelector('#qd-csv');
-    if (btn) btn.addEventListener('click', () => downloadCsv(className + '-qaidah.csv',
-        [['Code','Student','Stage','Page','Last assessed','Total /20','Average','Grade','Assessments'],
-         ...rows.map(r => [r.student_code, r.first_name + ' ' + r.last_name, r.stage, r.page,
-                           r.assessed_on, r.total_score, r.average_score, r.grade, r.assessments_count])]));
-}
-
-function downloadCsv(filename, lines) {
-    const csv = lines.map(row => row.map(v => {
-        if (v == null) return '';
-        const s = String(v).replace(/"/g, '""');
-        return /[",\n]/.test(s) ? `"${s}"` : s;
-    }).join(',')).join('\r\n');
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    if (btn) btn.addEventListener('click', () => {
+        // Split into Qaidah + Juz sections inside the same file
+        const sections = [
+            { title: 'Qaidah',         rows: rows.filter(r => r.stage === 'Qaidah') },
+            { title: 'Juz Amm, 1, 2',  rows: rows.filter(r => r.stage === 'Juz Amm, 1, 2') },
+        ];
+        const headers = ['Code','Student','Page','Last assessed','Total /20','Average','Grade','Assessments'];
+        downloadSectionedCsv(className + '-qaidah.csv', sections.map(s => ({
+            title:   s.title,
+            headers,
+            rows:    s.rows.map(r => [r.student_code, r.first_name + ' ' + r.last_name, r.page,
+                                      r.assessed_on, r.total_score, r.average_score, r.grade, r.assessments_count]),
+        })));
+    });
 }
 
 /* ----- Memorisation tab -------------------------------------------- */
@@ -510,6 +512,91 @@ function downloadCsv(filename, headers, rows) {
         }).join(',')
     ).join('\r\n');
     const blob = new Blob(['﻿' + lines], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/* Build a single CSV with one section per reading stage (Qaidah / Juz / Quran).
+ * Students with no reading_stage (Hifz etc.) go into a final "Other / Hifz" section.
+ */
+function exportAllStagesCsv(sorted, className) {
+    function quranRowsFor(filterFn) {
+        return sorted.filter(filterFn).map(r => {
+            const a = r.qr[0];
+            return [
+                r.student.student_code,
+                `${r.student.first_name} ${r.student.last_name}`,
+                a?.assessed_on || '',
+                a?.overall_score ?? '',
+                a?.overall_grade ?? '',
+                r.qr.length,
+            ];
+        });
+    }
+    function qaidahRowsFor(filterFn) {
+        return sorted.filter(filterFn).map(r => {
+            const a = r.qd[0];
+            const g = a && (Array.isArray(a.qaidah_grades) ? a.qaidah_grades[0] : a.qaidah_grades);
+            return [
+                r.student.student_code,
+                `${r.student.first_name} ${r.student.last_name}`,
+                g?.page_at_assessment ?? r.student.qaidah_page ?? '',
+                a?.assessed_on || '',
+                g?.total_score ?? '',
+                a?.overall_score ?? '',
+                a?.overall_grade ?? '',
+                r.qd.length,
+            ];
+        });
+    }
+    const sections = [
+        {
+            title:   'Quran',
+            headers: ['Code', 'Student', 'Last assessed', 'Average / 5', 'Grade', '# assessments'],
+            rows:    quranRowsFor(r => r.student.reading_stage === 'quran'),
+        },
+        {
+            title:   'Qaidah',
+            headers: ['Code', 'Student', 'Page', 'Last assessed', 'Total / 20', 'Average / 5', 'Grade', '# assessments'],
+            rows:    qaidahRowsFor(r => r.student.reading_stage === 'qaidah'),
+        },
+        {
+            title:   'Juz Amm, 1, 2',
+            headers: ['Code', 'Student', 'Page', 'Last assessed', 'Total / 20', 'Average / 5', 'Grade', '# assessments'],
+            rows:    qaidahRowsFor(r => r.student.reading_stage === 'juz'),
+        },
+        {
+            title:   'Other / Hifz (no reading stage set)',
+            headers: ['Code', 'Student'],
+            rows:    sorted.filter(r => !r.student.reading_stage)
+                          .map(r => [r.student.student_code, `${r.student.first_name} ${r.student.last_name}`]),
+        },
+    ];
+    downloadSectionedCsv(`${className}-all-stages.csv`, sections);
+}
+
+/* Write a multi-section CSV — each section gets its own header row above the data.
+ * sections: [ { title, headers, rows }, ... ]
+ * Empty sections are skipped so the file is tidy.
+ */
+function downloadSectionedCsv(filename, sections) {
+    const escapeCell = (v) => {
+        if (v == null) return '';
+        const s = String(v).replace(/"/g, '""');
+        return /[",\n]/.test(s) ? `"${s}"` : s;
+    };
+    const out = [];
+    for (const sec of sections) {
+        if (!sec.rows || sec.rows.length === 0) continue;
+        if (out.length > 0) out.push('');                       // blank separator row
+        out.push(escapeCell('=== ' + sec.title + ' ==='));      // section header in column A
+        out.push(sec.headers.map(escapeCell).join(','));
+        for (const row of sec.rows) out.push(row.map(escapeCell).join(','));
+    }
+    const blob = new Blob(['﻿' + out.join('\r\n')], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = filename;
