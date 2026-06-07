@@ -187,6 +187,8 @@ export async function render(root, { profile, supabase }) {
         }
         const memAvg = memCount ? (memSum / memCount) : 0;
         const tajAvg = tajCount ? (tajSum / tajCount) : 0;
+        const memMax = memCount * 5;
+        const tajMax = tajCount * 5;
         const memPct = memCount ? Math.round(memAvg / 5 * 100) : 0;
         const tajPct = tajCount ? Math.round(tajAvg / 5 * 100) : 0;
         const overall = memCount && tajCount ? Math.round((memPct + tajPct) / 2)
@@ -195,8 +197,8 @@ export async function render(root, { profile, supabase }) {
         div.style.display = '';
         div.innerHTML = `
             <strong>Overall: ${overall}%</strong> &nbsp;·&nbsp;
-            Memorisation avg: <strong>${memAvg.toFixed(2)} / 5 (${memPct}%)</strong> &nbsp;·&nbsp;
-            Tajweed avg: <strong>${tajAvg.toFixed(2)} / 5 (${tajPct}%)</strong> &nbsp;·&nbsp;
+            Memorisation: <strong>${memSum} / ${memMax}</strong> (avg ${memAvg.toFixed(2)}, ${memPct}%) &nbsp;·&nbsp;
+            Tajweed: <strong>${tajSum} / ${tajMax}</strong> (avg ${tajAvg.toFixed(2)}, ${tajPct}%) &nbsp;·&nbsp;
             Applicable duas: ${applicable} &nbsp;·&nbsp;
             Completed: ${completed}
             <div class="progress" style="margin-top:8px; max-width:480px"><span style="width:${overall}%"></span></div>`;

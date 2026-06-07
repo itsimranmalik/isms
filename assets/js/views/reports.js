@@ -315,6 +315,8 @@ function renderMemTab(pane, sorted, className, schoolName, logoUrl) {
         const m = r.mem;
         const memAvg = m.memCount ? (m.memSum / m.memCount) : 0;
         const tajAvg = m.tajCount ? (m.tajSum / m.tajCount) : 0;
+        const memMax = m.memCount * 5;
+        const tajMax = m.tajCount * 5;
         const memPct = m.memCount ? Math.round(memAvg / 5 * 100) : 0;
         const tajPct = m.tajCount ? Math.round(tajAvg / 5 * 100) : 0;
         const overall = m.memCount && m.tajCount ? Math.round((memPct + tajPct) / 2)
@@ -325,8 +327,14 @@ function renderMemTab(pane, sorted, className, schoolName, logoUrl) {
             last_name:    r.student.last_name,
             applicable:   m.applicable,
             completed:    m.completed,
+            memorisation_sum: m.memSum,
+            memorisation_max: memMax,
+            memorisation_total: `${m.memSum} / ${memMax}`,
             memorisation_avg: Number(memAvg.toFixed(2)),
             memorisation_pct: memPct,
+            tajweed_sum:      m.tajSum,
+            tajweed_max:      tajMax,
+            tajweed_total:    `${m.tajSum} / ${tajMax}`,
             tajweed_avg:      Number(tajAvg.toFixed(2)),
             tajweed_pct:      tajPct,
             overall_pct:      overall,
@@ -348,8 +356,8 @@ function renderMemTab(pane, sorted, className, schoolName, logoUrl) {
                 <thead><tr>
                     <th>Code</th><th>Student</th>
                     <th>Applicable</th><th>Completed</th>
-                    <th>Memorisation (/5)</th><th>Memorisation %</th>
-                    <th>Tajweed (/5)</th><th>Tajweed %</th>
+                    <th>Memo total</th><th>Memo avg /5</th><th>Memo %</th>
+                    <th>Tajweed total</th><th>Tajweed avg /5</th><th>Tajweed %</th>
                     <th>Overall %</th><th>Progress</th>
                 </tr></thead>
                 <tbody>
@@ -358,13 +366,15 @@ function renderMemTab(pane, sorted, className, schoolName, logoUrl) {
                         <td>${r.first_name} ${r.last_name}</td>
                         <td>${r.applicable}</td>
                         <td>${r.completed}</td>
+                        <td><strong>${r.memorisation_total}</strong></td>
                         <td>${r.memorisation_avg.toFixed(2)}</td>
                         <td>${r.memorisation_pct}%</td>
+                        <td><strong>${r.tajweed_total}</strong></td>
                         <td>${r.tajweed_avg.toFixed(2)}</td>
                         <td>${r.tajweed_pct}%</td>
                         <td><strong>${r.overall_pct}%</strong></td>
                         <td><div class="progress" style="min-width:120px"><span style="width:${Math.min(100, r.overall_pct)}%"></span></div></td>
-                    </tr>`).join('') || '<tr><td colspan="10"><em>No students.</em></td></tr>'}
+                    </tr>`).join('') || '<tr><td colspan="12"><em>No students.</em></td></tr>'}
                 </tbody>
             </table>
         </div>
@@ -374,8 +384,8 @@ function renderMemTab(pane, sorted, className, schoolName, logoUrl) {
     });
     pane.querySelector('#mem-csv').addEventListener('click', () => {
         downloadCsv(`${className.replace(/\s+/g,'-').toLowerCase()}-memorisation.csv`,
-            ['Code','First Name','Last Name','Applicable','Completed','Memorisation /5','Memorisation %','Tajweed /5','Tajweed %','Overall %'],
-            rows.map(r => [r.student_code, r.first_name, r.last_name, r.applicable, r.completed, r.memorisation_avg, r.memorisation_pct, r.tajweed_avg, r.tajweed_pct, r.overall_pct]));
+            ['Code','First Name','Last Name','Applicable','Completed','Memo total','Memo avg /5','Memo %','Tajweed total','Tajweed avg /5','Tajweed %','Overall %'],
+            rows.map(r => [r.student_code, r.first_name, r.last_name, r.applicable, r.completed, r.memorisation_total, r.memorisation_avg, r.memorisation_pct, r.tajweed_total, r.tajweed_avg, r.tajweed_pct, r.overall_pct]));
         pane.querySelector('#export-status').innerHTML = '<div class="alert alert-success">CSV downloaded.</div>';
     });
 }
@@ -387,6 +397,8 @@ function renderDuaTab(pane, sorted, category, className, schoolName, logoUrl) {
         const slot = category === 'namaz' ? r.duasNamaz : r.duasDaily;
         const memAvg = slot.memCount ? (slot.memSum / slot.memCount) : 0;
         const tajAvg = slot.tajCount ? (slot.tajSum / slot.tajCount) : 0;
+        const memMax = slot.memCount * 5;
+        const tajMax = slot.tajCount * 5;
         const memPct = slot.memCount ? Math.round(memAvg / 5 * 100) : 0;
         const tajPct = slot.tajCount ? Math.round(tajAvg / 5 * 100) : 0;
         const overall = slot.memCount && slot.tajCount ? Math.round((memPct + tajPct) / 2)
@@ -397,11 +409,13 @@ function renderDuaTab(pane, sorted, category, className, schoolName, logoUrl) {
             last_name:    r.student.last_name,
             applicable:   slot.applicable,
             completed:    slot.completed,
-            memorisation_avg: Number(memAvg.toFixed(2)),
-            memorisation_pct: memPct,
-            tajweed_avg:      Number(tajAvg.toFixed(2)),
-            tajweed_pct:      tajPct,
-            overall_pct:      overall,
+            memorisation_total: `${slot.memSum} / ${memMax}`,
+            memorisation_avg:   Number(memAvg.toFixed(2)),
+            memorisation_pct:   memPct,
+            tajweed_total:      `${slot.tajSum} / ${tajMax}`,
+            tajweed_avg:        Number(tajAvg.toFixed(2)),
+            tajweed_pct:        tajPct,
+            overall_pct:        overall,
             // Compat fields the PDF exporter expects
             total:   slot.applicable,
             percent: overall,
@@ -419,8 +433,8 @@ function renderDuaTab(pane, sorted, category, className, schoolName, logoUrl) {
                 <thead><tr>
                     <th>Code</th><th>Student</th>
                     <th>Applicable</th><th>Completed</th>
-                    <th>Memorisation (/5)</th><th>Memorisation %</th>
-                    <th>Tajweed (/5)</th><th>Tajweed %</th>
+                    <th>Memo total</th><th>Memo avg /5</th><th>Memo %</th>
+                    <th>Tajweed total</th><th>Tajweed avg /5</th><th>Tajweed %</th>
                     <th>Overall %</th><th>Progress</th>
                 </tr></thead>
                 <tbody>
@@ -429,13 +443,15 @@ function renderDuaTab(pane, sorted, category, className, schoolName, logoUrl) {
                         <td>${r.first_name} ${r.last_name}</td>
                         <td>${r.applicable}</td>
                         <td>${r.completed}</td>
+                        <td><strong>${r.memorisation_total}</strong></td>
                         <td>${r.memorisation_avg.toFixed(2)}</td>
                         <td>${r.memorisation_pct}%</td>
+                        <td><strong>${r.tajweed_total}</strong></td>
                         <td>${r.tajweed_avg.toFixed(2)}</td>
                         <td>${r.tajweed_pct}%</td>
                         <td><strong>${r.overall_pct}%</strong></td>
                         <td><div class="progress" style="min-width:120px"><span style="width:${r.overall_pct}%"></span></div></td>
-                    </tr>`).join('') || '<tr><td colspan="10"><em>No students.</em></td></tr>'}
+                    </tr>`).join('') || '<tr><td colspan="12"><em>No students.</em></td></tr>'}
                 </tbody>
             </table>
         </div>
@@ -445,8 +461,8 @@ function renderDuaTab(pane, sorted, category, className, schoolName, logoUrl) {
     });
     pane.querySelector('#dua-csv').addEventListener('click', () => {
         downloadCsv(`${className.replace(/\s+/g,'-').toLowerCase()}-${category}-duas.csv`,
-            ['Code','First Name','Last Name','Applicable','Completed','Memorisation /5','Memorisation %','Tajweed /5','Tajweed %','Overall %'],
-            rows.map(r => [r.student_code, r.first_name, r.last_name, r.applicable, r.completed, r.memorisation_avg, r.memorisation_pct, r.tajweed_avg, r.tajweed_pct, r.overall_pct]));
+            ['Code','First Name','Last Name','Applicable','Completed','Memo total','Memo avg /5','Memo %','Tajweed total','Tajweed avg /5','Tajweed %','Overall %'],
+            rows.map(r => [r.student_code, r.first_name, r.last_name, r.applicable, r.completed, r.memorisation_total, r.memorisation_avg, r.memorisation_pct, r.tajweed_total, r.tajweed_avg, r.tajweed_pct, r.overall_pct]));
         pane.querySelector('#export-status').innerHTML = '<div class="alert alert-success">CSV downloaded.</div>';
     });
 }
@@ -570,32 +586,37 @@ function buildAllStagesSections(sorted, className) {
         const m = r.mem;
         const memAvg = m.memCount ? Number((m.memSum / m.memCount).toFixed(2)) : 0;
         const tajAvg = m.tajCount ? Number((m.tajSum / m.tajCount).toFixed(2)) : 0;
+        const memMax = m.memCount * 5;
+        const tajMax = m.tajCount * 5;
         const memPct = m.memCount ? Math.round(memAvg / 5 * 100) : 0;
         const tajPct = m.tajCount ? Math.round(tajAvg / 5 * 100) : 0;
         const overall = m.memCount && m.tajCount ? Math.round((memPct + tajPct) / 2)
                       : m.memCount ? memPct : m.tajCount ? tajPct : 0;
         return [r.student.student_code, `${r.student.first_name} ${r.student.last_name}`,
                 m.applicable, m.completed,
-                memAvg, memPct + '%',
-                tajAvg, tajPct + '%',
+                `${m.memSum} / ${memMax}`, memAvg, memPct + '%',
+                `${m.tajSum} / ${tajMax}`, tajAvg, tajPct + '%',
                 overall + '%'];
     };
     const duaRow = (r, kind) => {
         const slot = kind === 'namaz' ? r.duasNamaz : r.duasDaily;
         const memAvg = slot.memCount ? Number((slot.memSum / slot.memCount).toFixed(2)) : 0;
         const tajAvg = slot.tajCount ? Number((slot.tajSum / slot.tajCount).toFixed(2)) : 0;
+        const memMax = slot.memCount * 5;
+        const tajMax = slot.tajCount * 5;
         const memPct = slot.memCount ? Math.round(memAvg / 5 * 100) : 0;
         const tajPct = slot.tajCount ? Math.round(tajAvg / 5 * 100) : 0;
         const overall = slot.memCount && slot.tajCount ? Math.round((memPct + tajPct) / 2)
                       : slot.memCount ? memPct : slot.tajCount ? tajPct : 0;
         return [r.student.student_code, `${r.student.first_name} ${r.student.last_name}`,
                 slot.applicable, slot.completed,
-                memAvg, memPct + '%',
-                tajAvg, tajPct + '%',
+                `${slot.memSum} / ${memMax}`, memAvg, memPct + '%',
+                `${slot.tajSum} / ${tajMax}`, tajAvg, tajPct + '%',
                 overall + '%'];
     };
     const scoreHeaders = ['Code','Student','Applicable','Completed',
-                          'Memorisation /5','Memorisation %','Tajweed /5','Tajweed %','Overall %'];
+                          'Memo total','Memo avg /5','Memo %',
+                          'Tajweed total','Tajweed avg /5','Tajweed %','Overall %'];
 
     const sections = [
         {
