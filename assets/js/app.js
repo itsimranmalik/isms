@@ -3,6 +3,7 @@
  */
 import { supabase, currentProfile, signOut } from './supabase-client.js';
 import { watchContainer as watchSortable } from './modules/sortable-table.js';
+import { start as startIdleWatcher, stop as stopIdleWatcher } from './modules/idle-timeout.js';
 
 const NAV_BY_ROLE = {
     admin: [
@@ -72,6 +73,9 @@ async function boot() {
     window.addEventListener('hashchange', route);
     if (!location.hash) location.hash = '#/dashboard';
     route();
+
+    // Auto sign-out after 30 minutes of inactivity (warns at 25 min).
+    startIdleWatcher();
 }
 
 function renderSidebar() {
@@ -96,7 +100,7 @@ function renderSidebar() {
 }
 
 function bindTopbar() {
-    document.getElementById('signout-btn').addEventListener('click', () => signOut());
+    document.getElementById('signout-btn').addEventListener('click', () => { stopIdleWatcher(); signOut(); });
     document.getElementById('theme-toggle').addEventListener('click', () => {
         const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
         document.documentElement.setAttribute('data-theme', next);
