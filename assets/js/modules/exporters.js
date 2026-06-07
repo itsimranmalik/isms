@@ -133,6 +133,35 @@ export async function exportClassExcel({ className, rows }) {
     XLSX.writeFile(wb, `class-${className.replace(/\s+/g, '-').toLowerCase()}.xlsx`);
 }
 
+/* -------------- Multi-sheet "all stages" XLSX ---------------------------- *
+ * sections: [ { sheetName, headers, rows }, ... ]
+ * One Excel sheet per section. Empty sections get a "(no data)" placeholder
+ * row so the sheet still exists and the reader can see the structure.
+ * filename: <className>-all-stages.xlsx
+ */
+export async function exportAllStagesXlsx({ className, sections }) {
+    await ensureXLSX();
+    const XLSX = window.XLSX;
+    const wb = XLSX.utils.book_new();
+    for (const sec of sections) {
+        const aoa = [
+            [sec.sheetName],
+            [],
+            sec.headers,
+        ];
+        if (sec.rows && sec.rows.length > 0) {
+            for (const row of sec.rows) aoa.push(row);
+        } else {
+            aoa.push(['(no data)']);
+        }
+        const ws = XLSX.utils.aoa_to_sheet(aoa);
+        // Excel limits sheet names to 31 chars and no /\\?*[]:
+        const safe = String(sec.sheetName).replace(/[\\/?*[\]:]/g, '-').slice(0, 31);
+        XLSX.utils.book_append_sheet(wb, ws, safe);
+    }
+    XLSX.writeFile(wb, `${className.replace(/\s+/g, '-').toLowerCase()}-all-stages.xlsx`);
+}
+
 /* ------------------------- Class snapshot CSV ---------------------------- */
 export function exportClassCsv({ className, rows }) {
     const lines = [

@@ -185,16 +185,18 @@ export async function render(root, { profile, supabase }) {
             if (m != null) { memSum += m; memCount++; }
             if (t != null) { tajSum += t; tajCount++; }
         }
-        const memPct = memCount ? Math.round(memSum / memCount / 5 * 100) : 0;
-        const tajPct = tajCount ? Math.round(tajSum / tajCount / 5 * 100) : 0;
+        const memAvg = memCount ? (memSum / memCount) : 0;
+        const tajAvg = tajCount ? (tajSum / tajCount) : 0;
+        const memPct = memCount ? Math.round(memAvg / 5 * 100) : 0;
+        const tajPct = tajCount ? Math.round(tajAvg / 5 * 100) : 0;
         const overall = memCount && tajCount ? Math.round((memPct + tajPct) / 2)
                       : memCount ? memPct : tajCount ? tajPct : 0;
         const div = document.getElementById('dua-overall');
         div.style.display = '';
         div.innerHTML = `
             <strong>Overall: ${overall}%</strong> &nbsp;·&nbsp;
-            Memorisation avg: <strong>${memPct}%</strong> &nbsp;·&nbsp;
-            Tajweed avg: <strong>${tajPct}%</strong> &nbsp;·&nbsp;
+            Memorisation avg: <strong>${memAvg.toFixed(2)} / 5 (${memPct}%)</strong> &nbsp;·&nbsp;
+            Tajweed avg: <strong>${tajAvg.toFixed(2)} / 5 (${tajPct}%)</strong> &nbsp;·&nbsp;
             Applicable duas: ${applicable} &nbsp;·&nbsp;
             Completed: ${completed}
             <div class="progress" style="margin-top:8px; max-width:480px"><span style="width:${overall}%"></span></div>`;

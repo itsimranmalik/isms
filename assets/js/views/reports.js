@@ -1,7 +1,8 @@
 /* Reports — class drill-down with Quran / Qaidah / Memorisation / Daily Duas / Namaz Duas tabs.
  * Each tab supports CSV download; Memorisation + Daily/Namaz Duas tabs include class PDF. */
 import { exportStudentReportPdf, exportClassExcel, exportClassCsv,
-         exportClassMemorisationPdf, exportClassDuasPdf } from '../modules/exporters.js';
+         exportClassMemorisationPdf, exportClassDuasPdf,
+         exportAllStagesXlsx } from '../modules/exporters.js';
 
 export const title = 'Reports';
 
@@ -143,13 +144,14 @@ async function renderClassReport(root, sb, profile, classId, tab) {
             ${tabBtn('duas-daily',  'Daily Duas')}
             ${tabBtn('duas-namaz',  'Namaz Duas')}
             <span style="margin-left:auto"></span>
-            <button class="btn" id="all-stages-csv" title="Export Qaidah, Juz and Quran in one file with section headers">All stages CSV</button>
+            <button class="btn" id="all-stages-xlsx" title="One Excel file with a separate sheet for Quran, Qaidah, Juz, Memorisation, Daily Duas, Namaz Duas">All stages XLSX</button>
         </div>
 
         <div id="report-pane"></div>`;
 
-    document.getElementById('all-stages-csv').addEventListener('click', () => {
-        exportAllStagesCsv(sorted, className);
+    document.getElementById('all-stages-xlsx').addEventListener('click', async () => {
+        try { await exportAllStagesXlsx(buildAllStagesSections(sorted, className)); }
+        catch (err) { alert(err.message || 'Export failed.'); }
     });
 
     const pane = document.getElementById('report-pane');
@@ -311,8 +313,10 @@ function renderQaidahTab(pane, sorted, className) {
 function renderMemTab(pane, sorted, className, schoolName, logoUrl) {
     const rows = sorted.map(r => {
         const m = r.mem;
-        const memPct = m.memCount ? Math.round(m.memSum / m.memCount / 5 * 100) : 0;
-        const tajPct = m.tajCount ? Math.round(m.tajSum / m.tajCount / 5 * 100) : 0;
+        const memAvg = m.memCount ? (m.memSum / m.memCount) : 0;
+        const tajAvg = m.tajCount ? (m.tajSum / m.tajCount) : 0;
+        const memPct = m.memCount ? Math.round(memAvg / 5 * 100) : 0;
+        const tajPct = m.tajCount ? Math.round(tajAvg / 5 * 100) : 0;
         const overall = m.memCount && m.tajCount ? Math.round((memPct + tajPct) / 2)
                       : m.memCount ? memPct : m.tajCount ? tajPct : 0;
         return {
@@ -321,11 +325,13 @@ function renderMemTab(pane, sorted, className, schoolName, logoUrl) {
             last_name:    r.student.last_name,
             applicable:   m.applicable,
             completed:    m.completed,
+            memorisation_avg: Number(memAvg.toFixed(2)),
             memorisation_pct: memPct,
+            tajweed_avg:      Number(tajAvg.toFixed(2)),
             tajweed_pct:      tajPct,
             overall_pct:      overall,
             // Compat fields for existing exporters
-            ayahs:            m.completed,                   // re-used as "surahs completed"
+            ayahs:            m.completed,
             percent:          overall,
             surahs_complete:  m.completed,
         };
@@ -342,7 +348,8 @@ function renderMemTab(pane, sorted, className, schoolName, logoUrl) {
                 <thead><tr>
                     <th>Code</th><th>Student</th>
                     <th>Applicable</th><th>Completed</th>
-                    <th>Memorisation %</th><th>Tajweed %</th>
+                    <th>Memorisation (/5)</th><th>Memorisation %</th>
+                    <th>Tajweed (/5)</th><th>Tajweed %</th>
                     <th>Overall %</th><th>Progress</th>
                 </tr></thead>
                 <tbody>
@@ -351,11 +358,13 @@ function renderMemTab(pane, sorted, className, schoolName, logoUrl) {
                         <td>${r.first_name} ${r.last_name}</td>
                         <td>${r.applicable}</td>
                         <td>${r.completed}</td>
+                        <td>${r.memorisation_avg.toFixed(2)}</td>
                         <td>${r.memorisation_pct}%</td>
+                        <td>${r.tajweed_avg.toFixed(2)}</td>
                         <td>${r.tajweed_pct}%</td>
                         <td><strong>${r.overall_pct}%</strong></td>
                         <td><div class="progress" style="min-width:120px"><span style="width:${Math.min(100, r.overall_pct)}%"></span></div></td>
-                    </tr>`).join('') || '<tr><td colspan="8"><em>No students.</em></td></tr>'}
+                    </tr>`).join('') || '<tr><td colspan="10"><em>No students.</em></td></tr>'}
                 </tbody>
             </table>
         </div>
@@ -365,8 +374,8 @@ function renderMemTab(pane, sorted, className, schoolName, logoUrl) {
     });
     pane.querySelector('#mem-csv').addEventListener('click', () => {
         downloadCsv(`${className.replace(/\s+/g,'-').toLowerCase()}-memorisation.csv`,
-            ['Code','First Name','Last Name','Applicable','Completed','Memorisation %','Tajweed %','Overall %'],
-            rows.map(r => [r.student_code, r.first_name, r.last_name, r.applicable, r.completed, r.memorisation_pct, r.tajweed_pct, r.overall_pct]));
+            ['Code','First Name','Last Name','Applicable','Completed','Memorisation /5','Memorisation %','Tajweed /5','Tajweed %','Overall %'],
+            rows.map(r => [r.student_code, r.first_name, r.last_name, r.applicable, r.completed, r.memorisation_avg, r.memorisation_pct, r.tajweed_avg, r.tajweed_pct, r.overall_pct]));
         pane.querySelector('#export-status').innerHTML = '<div class="alert alert-success">CSV downloaded.</div>';
     });
 }
@@ -376,8 +385,10 @@ function renderDuaTab(pane, sorted, category, className, schoolName, logoUrl) {
     const label = category === 'namaz' ? 'Namaz Duas' : 'Daily Duas';
     const rows = sorted.map(r => {
         const slot = category === 'namaz' ? r.duasNamaz : r.duasDaily;
-        const memPct = slot.memCount ? Math.round(slot.memSum / slot.memCount / 5 * 100) : 0;
-        const tajPct = slot.tajCount ? Math.round(slot.tajSum / slot.tajCount / 5 * 100) : 0;
+        const memAvg = slot.memCount ? (slot.memSum / slot.memCount) : 0;
+        const tajAvg = slot.tajCount ? (slot.tajSum / slot.tajCount) : 0;
+        const memPct = slot.memCount ? Math.round(memAvg / 5 * 100) : 0;
+        const tajPct = slot.tajCount ? Math.round(tajAvg / 5 * 100) : 0;
         const overall = slot.memCount && slot.tajCount ? Math.round((memPct + tajPct) / 2)
                       : slot.memCount ? memPct : slot.tajCount ? tajPct : 0;
         return {
@@ -386,10 +397,12 @@ function renderDuaTab(pane, sorted, category, className, schoolName, logoUrl) {
             last_name:    r.student.last_name,
             applicable:   slot.applicable,
             completed:    slot.completed,
+            memorisation_avg: Number(memAvg.toFixed(2)),
             memorisation_pct: memPct,
+            tajweed_avg:      Number(tajAvg.toFixed(2)),
             tajweed_pct:      tajPct,
             overall_pct:      overall,
-            // Compat fields the PDF exporter expects (it uses `completed`, `total`, `percent`)
+            // Compat fields the PDF exporter expects
             total:   slot.applicable,
             percent: overall,
         };
@@ -406,7 +419,8 @@ function renderDuaTab(pane, sorted, category, className, schoolName, logoUrl) {
                 <thead><tr>
                     <th>Code</th><th>Student</th>
                     <th>Applicable</th><th>Completed</th>
-                    <th>Memorisation %</th><th>Tajweed %</th>
+                    <th>Memorisation (/5)</th><th>Memorisation %</th>
+                    <th>Tajweed (/5)</th><th>Tajweed %</th>
                     <th>Overall %</th><th>Progress</th>
                 </tr></thead>
                 <tbody>
@@ -415,11 +429,13 @@ function renderDuaTab(pane, sorted, category, className, schoolName, logoUrl) {
                         <td>${r.first_name} ${r.last_name}</td>
                         <td>${r.applicable}</td>
                         <td>${r.completed}</td>
+                        <td>${r.memorisation_avg.toFixed(2)}</td>
                         <td>${r.memorisation_pct}%</td>
+                        <td>${r.tajweed_avg.toFixed(2)}</td>
                         <td>${r.tajweed_pct}%</td>
                         <td><strong>${r.overall_pct}%</strong></td>
                         <td><div class="progress" style="min-width:120px"><span style="width:${r.overall_pct}%"></span></div></td>
-                    </tr>`).join('') || '<tr><td colspan="8"><em>No students.</em></td></tr>'}
+                    </tr>`).join('') || '<tr><td colspan="10"><em>No students.</em></td></tr>'}
                 </tbody>
             </table>
         </div>
@@ -429,8 +445,8 @@ function renderDuaTab(pane, sorted, category, className, schoolName, logoUrl) {
     });
     pane.querySelector('#dua-csv').addEventListener('click', () => {
         downloadCsv(`${className.replace(/\s+/g,'-').toLowerCase()}-${category}-duas.csv`,
-            ['Code','First Name','Last Name','Applicable','Completed','Memorisation %','Tajweed %','Overall %'],
-            rows.map(r => [r.student_code, r.first_name, r.last_name, r.applicable, r.completed, r.memorisation_pct, r.tajweed_pct, r.overall_pct]));
+            ['Code','First Name','Last Name','Applicable','Completed','Memorisation /5','Memorisation %','Tajweed /5','Tajweed %','Overall %'],
+            rows.map(r => [r.student_code, r.first_name, r.last_name, r.applicable, r.completed, r.memorisation_avg, r.memorisation_pct, r.tajweed_avg, r.tajweed_pct, r.overall_pct]));
         pane.querySelector('#export-status').innerHTML = '<div class="alert alert-success">CSV downloaded.</div>';
     });
 }
@@ -519,13 +535,12 @@ function downloadCsv(filename, headers, rows) {
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
-/* Build a comprehensive class CSV with one section per assessment area:
- *   Quran Recitation, Qaidah, Juz Amm 1-2, Memorisation, Daily Duas, Namaz Duas,
- *   and a roster of any students without a reading stage set (Hifz etc.).
- * Every section header is emitted even if empty so the file makes its structure
- * obvious to the reader. Filename: <class>-all-stages.csv
+/* Build the sections payload for the multi-sheet XLSX exporter.
+ * One sheet per assessment area: Quran Recitation, Qaidah, Juz Amm 1-2,
+ * Memorisation, Daily Duas, Namaz Duas, plus a roster sheet for students
+ * with no reading stage (Hifz etc.). Returns { className, sections }.
  */
-function exportAllStagesCsv(sorted, className) {
+function buildAllStagesSections(sorted, className) {
     const quranRowsFor = (filterFn) => sorted.filter(filterFn).map(r => {
         const a = r.qr[0];
         return [
@@ -553,63 +568,74 @@ function exportAllStagesCsv(sorted, className) {
     });
     const memRow = (r) => {
         const m = r.mem;
-        const memPct = m.memCount ? Math.round(m.memSum / m.memCount / 5 * 100) : 0;
-        const tajPct = m.tajCount ? Math.round(m.tajSum / m.tajCount / 5 * 100) : 0;
+        const memAvg = m.memCount ? Number((m.memSum / m.memCount).toFixed(2)) : 0;
+        const tajAvg = m.tajCount ? Number((m.tajSum / m.tajCount).toFixed(2)) : 0;
+        const memPct = m.memCount ? Math.round(memAvg / 5 * 100) : 0;
+        const tajPct = m.tajCount ? Math.round(tajAvg / 5 * 100) : 0;
         const overall = m.memCount && m.tajCount ? Math.round((memPct + tajPct) / 2)
                       : m.memCount ? memPct : m.tajCount ? tajPct : 0;
         return [r.student.student_code, `${r.student.first_name} ${r.student.last_name}`,
-                m.applicable, m.completed, memPct + '%', tajPct + '%', overall + '%'];
+                m.applicable, m.completed,
+                memAvg, memPct + '%',
+                tajAvg, tajPct + '%',
+                overall + '%'];
     };
     const duaRow = (r, kind) => {
         const slot = kind === 'namaz' ? r.duasNamaz : r.duasDaily;
-        const memPct = slot.memCount ? Math.round(slot.memSum / slot.memCount / 5 * 100) : 0;
-        const tajPct = slot.tajCount ? Math.round(slot.tajSum / slot.tajCount / 5 * 100) : 0;
+        const memAvg = slot.memCount ? Number((slot.memSum / slot.memCount).toFixed(2)) : 0;
+        const tajAvg = slot.tajCount ? Number((slot.tajSum / slot.tajCount).toFixed(2)) : 0;
+        const memPct = slot.memCount ? Math.round(memAvg / 5 * 100) : 0;
+        const tajPct = slot.tajCount ? Math.round(tajAvg / 5 * 100) : 0;
         const overall = slot.memCount && slot.tajCount ? Math.round((memPct + tajPct) / 2)
                       : slot.memCount ? memPct : slot.tajCount ? tajPct : 0;
         return [r.student.student_code, `${r.student.first_name} ${r.student.last_name}`,
-                slot.applicable, slot.completed, memPct + '%', tajPct + '%', overall + '%'];
+                slot.applicable, slot.completed,
+                memAvg, memPct + '%',
+                tajAvg, tajPct + '%',
+                overall + '%'];
     };
+    const scoreHeaders = ['Code','Student','Applicable','Completed',
+                          'Memorisation /5','Memorisation %','Tajweed /5','Tajweed %','Overall %'];
 
     const sections = [
         {
-            title:   'Quran Recitation',
-            headers: ['Code', 'Student', 'Last assessed', 'Average / 5', 'Grade', '# assessments'],
-            rows:    quranRowsFor(r => r.student.reading_stage === 'quran'),
+            sheetName: 'Quran',
+            headers:   ['Code', 'Student', 'Last assessed', 'Average / 5', 'Grade', '# assessments'],
+            rows:      quranRowsFor(r => r.student.reading_stage === 'quran'),
         },
         {
-            title:   'Qaidah',
-            headers: ['Code', 'Student', 'Page', 'Last assessed', 'Total / 20', 'Average / 5', 'Grade', '# assessments'],
-            rows:    qaidahRowsFor(r => r.student.reading_stage === 'qaidah'),
+            sheetName: 'Qaidah',
+            headers:   ['Code', 'Student', 'Page', 'Last assessed', 'Total / 20', 'Average / 5', 'Grade', '# assessments'],
+            rows:      qaidahRowsFor(r => r.student.reading_stage === 'qaidah'),
         },
         {
-            title:   'Juz Amm, 1, 2',
-            headers: ['Code', 'Student', 'Page', 'Last assessed', 'Total / 20', 'Average / 5', 'Grade', '# assessments'],
-            rows:    qaidahRowsFor(r => r.student.reading_stage === 'juz'),
+            sheetName: 'Juz Amm 1-2',
+            headers:   ['Code', 'Student', 'Page', 'Last assessed', 'Total / 20', 'Average / 5', 'Grade', '# assessments'],
+            rows:      qaidahRowsFor(r => r.student.reading_stage === 'juz'),
         },
         {
-            title:   'Memorisation (Hifz)',
-            headers: ['Code', 'Student', 'Applicable', 'Completed', 'Memorisation %', 'Tajweed %', 'Overall %'],
-            rows:    sorted.map(memRow),
+            sheetName: 'Memorisation',
+            headers:   scoreHeaders,
+            rows:      sorted.map(memRow),
         },
         {
-            title:   'Daily Duas',
-            headers: ['Code', 'Student', 'Applicable', 'Completed', 'Memorisation %', 'Tajweed %', 'Overall %'],
-            rows:    sorted.map(r => duaRow(r, 'daily')),
+            sheetName: 'Daily Duas',
+            headers:   scoreHeaders,
+            rows:      sorted.map(r => duaRow(r, 'daily')),
         },
         {
-            title:   'Namaz Duas',
-            headers: ['Code', 'Student', 'Applicable', 'Completed', 'Memorisation %', 'Tajweed %', 'Overall %'],
-            rows:    sorted.map(r => duaRow(r, 'namaz')),
+            sheetName: 'Namaz Duas',
+            headers:   scoreHeaders,
+            rows:      sorted.map(r => duaRow(r, 'namaz')),
         },
         {
-            title:   'Roster (no reading stage set)',
-            headers: ['Code', 'Student'],
-            rows:    sorted.filter(r => !r.student.reading_stage)
-                          .map(r => [r.student.student_code, `${r.student.first_name} ${r.student.last_name}`]),
+            sheetName: 'Roster',
+            headers:   ['Code', 'Student', 'Reading stage'],
+            rows:      sorted.map(r => [r.student.student_code, `${r.student.first_name} ${r.student.last_name}`,
+                                        r.student.reading_stage || '— not set —']),
         },
     ];
-    // Show every section header even if empty so the structure is obvious.
-    downloadSectionedCsv(`${className}-all-stages.csv`, sections, { keepEmpty: true });
+    return { className, sections };
 }
 
 /* Write a multi-section CSV — each section gets its own header row above the data.
