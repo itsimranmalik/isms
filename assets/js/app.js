@@ -4,6 +4,7 @@
 import { supabase, currentProfile, signOut } from './supabase-client.js';
 import { watchContainer as watchSortable } from './modules/sortable-table.js';
 import { start as startIdleWatcher, stop as stopIdleWatcher } from './modules/idle-timeout.js';
+import { showIfApplicable as showTodayAnnouncement } from './modules/today-announcement.js';
 
 const NAV_BY_ROLE = {
     admin: [
@@ -77,6 +78,9 @@ async function boot() {
 
     // Auto sign-out after 30 minutes of inactivity (warns at 25 min).
     startIdleWatcher();
+
+    // One-shot, date-gated announcement (e.g. assessment day message).
+    showTodayAnnouncement(PROFILE);
 }
 
 function renderSidebar() {
