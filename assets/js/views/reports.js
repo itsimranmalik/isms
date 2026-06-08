@@ -59,7 +59,8 @@ async function renderClassReport(root, sb, profile, classId, tab) {
 
     const [{ data: qrAsses }, { data: qdAsses }, { data: memProg }, { data: duaProg }] = ids.length
         ? await Promise.all([
-            sb.from('assessments').select('student_id, overall_score, overall_grade, assessed_on')
+            sb.from('assessments')
+                .select('student_id, overall_score, overall_grade, assessed_on, quran_recitation_grades(fluency, makharij, tajweed, waqf, accuracy)')
                 .in('student_id', ids).eq('module_type', 'quran_recitation')
                 .order('assessed_on', { ascending: false }),
             sb.from('assessments')
@@ -178,14 +179,23 @@ function renderQuranTab(pane, sorted, classId, className, schoolName, logoUrl, s
         } else if (latest) {
             trend = '<span class="chip">first</span>';
         }
+        const g = latest && (Array.isArray(latest.quran_recitation_grades) ? latest.quran_recitation_grades[0] : latest.quran_recitation_grades);
+        const cats = g ? [g.fluency, g.makharij, g.tajweed, g.waqf, g.accuracy] : [null, null, null, null, null];
+        const total = g ? cats.reduce((s, v) => s + Number(v || 0), 0) : '';
         return {
             student_id: r.student.id,
             student_code: r.student.student_code,
             first_name: r.student.first_name,
             last_name: r.student.last_name,
             assessed_on: latest?.assessed_on || '',
+            fluency:  g?.fluency  ?? '',
+            makharij: g?.makharij ?? '',
+            tajweed:  g?.tajweed  ?? '',
+            waqf:     g?.waqf     ?? '',
+            accuracy: g?.accuracy ?? '',
+            total_score:    total,
             latest_average: latest?.overall_score ?? '',
-            latest_grade: latest?.overall_grade ?? '',
+            latest_grade:   latest?.overall_grade ?? '',
             assessments_count: r.qr.length,
             trend,
         };
@@ -199,18 +209,28 @@ function renderQuranTab(pane, sorted, classId, className, schoolName, logoUrl, s
                 <button class="btn" id="export-csv">CSV</button>
             </div>
             <table class="table">
-                <thead><tr><th>Code</th><th>Student</th><th>Last assessed</th><th>Average</th><th>Grade</th><th>Trend</th><th>#</th><th>Report</th></tr></thead>
+                <thead><tr>
+                    <th>Code</th><th>Student</th><th>Last assessed</th>
+                    <th>Fluency</th><th>Makharij</th><th>Tajweed</th><th>Waqf</th><th>Accuracy</th>
+                    <th>Total /25</th><th>Avg</th><th>Grade</th><th>Trend</th><th>#</th><th>Report</th>
+                </tr></thead>
                 <tbody>
                     ${rows.map(r => `<tr>
                         <td>${r.student_code}</td>
                         <td>${r.first_name} ${r.last_name}</td>
                         <td>${r.assessed_on || '—'}</td>
+                        <td>${r.fluency  === '' ? '—' : r.fluency}</td>
+                        <td>${r.makharij === '' ? '—' : r.makharij}</td>
+                        <td>${r.tajweed  === '' ? '—' : r.tajweed}</td>
+                        <td>${r.waqf     === '' ? '—' : r.waqf}</td>
+                        <td>${r.accuracy === '' ? '—' : r.accuracy}</td>
+                        <td><strong>${r.total_score === '' ? '—' : r.total_score}</strong></td>
                         <td>${r.latest_average === '' ? '—' : r.latest_average}</td>
                         <td>${r.latest_grade ? '<span class="chip">' + r.latest_grade + '</span>' : '<span class="chip warn">not yet</span>'}</td>
                         <td>${r.trend}</td>
                         <td>${r.assessments_count}</td>
                         <td><button class="btn pdf-btn" data-id="${r.student_id}">PDF</button></td>
-                    </tr>`).join('') || '<tr><td colspan="8"><em>No students enrolled.</em></td></tr>'}
+                    </tr>`).join('') || '<tr><td colspan="14"><em>No students enrolled.</em></td></tr>'}
                 </tbody>
             </table>
         </div>
@@ -251,6 +271,10 @@ function renderQaidahTab(pane, sorted, className) {
             stage:              r.student.reading_stage === 'juz' ? 'Juz Amm, 1, 2' : 'Qaidah',
             page:               g?.page_at_assessment ?? r.student.qaidah_page ?? '',
             assessed_on:        latest?.assessed_on || '',
+            letter_recognition: g?.letter_recognition ?? '',
+            joining_reading:    g?.joining_reading    ?? '',
+            makharij_tajweed:   g?.makharij_tajweed   ?? '',
+            fluency_confidence: g?.fluency_confidence ?? '',
             total_score:        g?.total_score ?? '',
             average_score:      latest?.overall_score ?? '',
             grade:              latest?.overall_grade ?? '',
@@ -270,9 +294,9 @@ function renderQaidahTab(pane, sorted, className) {
                 ? '<div class="alert alert-info">No Qaidah / Juz students in this class.</div>'
                 : `<table class="table">
                     <thead><tr>
-                        <th>Code</th><th>Student</th><th>Stage</th><th>Page</th>
-                        <th>Last assessed</th><th>Total / 20</th><th>Avg</th>
-                        <th>Grade</th><th>Trend</th><th>#</th>
+                        <th>Code</th><th>Student</th><th>Stage</th><th>Page</th><th>Last assessed</th>
+                        <th>Letter Rec.</th><th>Joining &amp; Reading</th><th>Makharij &amp; Tajweed</th><th>Fluency &amp; Conf.</th>
+                        <th>Total /20</th><th>Avg</th><th>Grade</th><th>Trend</th><th>#</th>
                     </tr></thead>
                     <tbody>
                         ${rows.map(r => `<tr>
@@ -281,6 +305,10 @@ function renderQaidahTab(pane, sorted, className) {
                             <td><span class="chip">${r.stage}</span></td>
                             <td>${r.page || '—'}</td>
                             <td>${r.assessed_on || '—'}</td>
+                            <td>${r.letter_recognition === '' ? '—' : r.letter_recognition}</td>
+                            <td>${r.joining_reading    === '' ? '—' : r.joining_reading}</td>
+                            <td>${r.makharij_tajweed   === '' ? '—' : r.makharij_tajweed}</td>
+                            <td>${r.fluency_confidence === '' ? '—' : r.fluency_confidence}</td>
                             <td>${r.total_score === '' ? '—' : '<strong>' + r.total_score + '</strong>'}</td>
                             <td>${r.average_score === '' ? '—' : r.average_score}</td>
                             <td>${r.grade ? '<span class="chip">' + r.grade + '</span>' : '<span class="chip warn">not yet</span>'}</td>
@@ -294,17 +322,19 @@ function renderQaidahTab(pane, sorted, className) {
 
     const btn = pane.querySelector('#qd-csv');
     if (btn) btn.addEventListener('click', () => {
-        // Split into Qaidah + Juz sections inside the same file
         const sections = [
             { title: 'Qaidah',         rows: rows.filter(r => r.stage === 'Qaidah') },
             { title: 'Juz Amm, 1, 2',  rows: rows.filter(r => r.stage === 'Juz Amm, 1, 2') },
         ];
-        const headers = ['Code','Student','Page','Last assessed','Total /20','Average','Grade','Assessments'];
+        const headers = ['Code','Student','Page','Last assessed',
+                         'Letter Recognition','Joining & Reading','Makharij & Tajweed','Fluency & Confidence',
+                         'Total /20','Average','Grade','Assessments'];
         downloadSectionedCsv(className + '-qaidah.csv', sections.map(s => ({
             title:   s.title,
             headers,
-            rows:    s.rows.map(r => [r.student_code, r.first_name + ' ' + r.last_name, r.page,
-                                      r.assessed_on, r.total_score, r.average_score, r.grade, r.assessments_count]),
+            rows:    s.rows.map(r => [r.student_code, r.first_name + ' ' + r.last_name, r.page, r.assessed_on,
+                                      r.letter_recognition, r.joining_reading, r.makharij_tajweed, r.fluency_confidence,
+                                      r.total_score, r.average_score, r.grade, r.assessments_count]),
         })));
     });
 }
@@ -559,10 +589,19 @@ function downloadCsv(filename, headers, rows) {
 function buildAllStagesSections(sorted, className) {
     const quranRowsFor = (filterFn) => sorted.filter(filterFn).map(r => {
         const a = r.qr[0];
+        const g = a && (Array.isArray(a.quran_recitation_grades) ? a.quran_recitation_grades[0] : a.quran_recitation_grades);
+        const cats = [g?.fluency, g?.makharij, g?.tajweed, g?.waqf, g?.accuracy];
+        const total = g ? cats.reduce((s, v) => s + Number(v || 0), 0) : '';
         return [
             r.student.student_code,
             `${r.student.first_name} ${r.student.last_name}`,
             a?.assessed_on || '',
+            g?.fluency  ?? '',
+            g?.makharij ?? '',
+            g?.tajweed  ?? '',
+            g?.waqf     ?? '',
+            g?.accuracy ?? '',
+            total,                            // out of 25
             a?.overall_score ?? '',
             a?.overall_grade ?? '',
             r.qr.length,
@@ -576,7 +615,11 @@ function buildAllStagesSections(sorted, className) {
             `${r.student.first_name} ${r.student.last_name}`,
             g?.page_at_assessment ?? r.student.qaidah_page ?? '',
             a?.assessed_on || '',
-            g?.total_score ?? '',
+            g?.letter_recognition  ?? '',
+            g?.joining_reading     ?? '',
+            g?.makharij_tajweed    ?? '',
+            g?.fluency_confidence  ?? '',
+            g?.total_score ?? '',             // out of 20
             a?.overall_score ?? '',
             a?.overall_grade ?? '',
             r.qd.length,
@@ -621,17 +664,23 @@ function buildAllStagesSections(sorted, className) {
     const sections = [
         {
             sheetName: 'Quran',
-            headers:   ['Code', 'Student', 'Last assessed', 'Average / 5', 'Grade', '# assessments'],
+            headers:   ['Code', 'Student', 'Last assessed',
+                        'Fluency', 'Makharij', 'Tajweed', 'Waqf', 'Accuracy',
+                        'Total / 25', 'Average / 5', 'Grade', '# assessments'],
             rows:      quranRowsFor(r => r.student.reading_stage === 'quran'),
         },
         {
             sheetName: 'Qaidah',
-            headers:   ['Code', 'Student', 'Page', 'Last assessed', 'Total / 20', 'Average / 5', 'Grade', '# assessments'],
+            headers:   ['Code', 'Student', 'Page', 'Last assessed',
+                        'Letter Recognition', 'Joining & Reading', 'Makharij & Tajweed', 'Fluency & Confidence',
+                        'Total / 20', 'Average / 5', 'Grade', '# assessments'],
             rows:      qaidahRowsFor(r => r.student.reading_stage === 'qaidah'),
         },
         {
             sheetName: 'Juz Amm 1-2',
-            headers:   ['Code', 'Student', 'Page', 'Last assessed', 'Total / 20', 'Average / 5', 'Grade', '# assessments'],
+            headers:   ['Code', 'Student', 'Page', 'Last assessed',
+                        'Letter Recognition', 'Joining & Reading', 'Makharij & Tajweed', 'Fluency & Confidence',
+                        'Total / 20', 'Average / 5', 'Grade', '# assessments'],
             rows:      qaidahRowsFor(r => r.student.reading_stage === 'juz'),
         },
         {
