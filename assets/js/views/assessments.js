@@ -150,7 +150,37 @@ async function renderForm(root, sb, profile, classId, studentId) {
 
     if (!student) { root.innerHTML = '<div class="alert alert-danger">Student not found.</div>'; return; }
 
-    const stage = student.reading_stage;
+    const stage      = student.reading_stage;
+    const moduleType = stage === 'quran'                 ? 'quran_recitation'
+                     : (stage === 'qaidah' || stage === 'juz') ? 'qaidah_reading'
+                     : null;
+
+    // Lock check: a single Quran/Qaidah assessment per (student, module, day).
+    if (moduleType) {
+        const today = new Date().toISOString().slice(0, 10);
+        const gradesSelect = moduleType === 'quran_recitation'
+            ? 'quran_recitation_grades(fluency, makharij, tajweed, waqf, accuracy)'
+            : 'qaidah_grades(letter_recognition, joining_reading, makharij_tajweed, fluency_confidence, total_score, page_at_assessment)';
+        const { data: existing } = await sb.from('assessments')
+            .select(`id, assessed_on, overall_score, overall_grade, created_at, teacher_id, teachers(staff_code, first_name, last_name), ${gradesSelect}`)
+            .eq('student_id', student.id)
+            .eq('module_type', moduleType)
+            .eq('assessed_on', today)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (existing) {
+            const { data: req } = await sb.from('assessment_regrade_requests')
+                .select('id, status, reason, admin_note, created_at, decided_at')
+                .eq('assessment_id', existing.id)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+            return renderLockPanel(root, sb, profile, classId, student, cls, existing, moduleType, req);
+        }
+    }
+
     if (stage === 'qaidah' || stage === 'juz') {
         return renderQaidahForm(root, sb, profile, classId, student, cls);
     }
@@ -168,6 +198,145 @@ async function renderForm(root, sb, profile, classId, studentId) {
             This student's reading stage hasn't been set yet. Open <strong>Students</strong> in the sidebar,
             edit this student, and choose their stage (Qaidah / Juz Amm, 1, 2 / Quran). Then come back to grade them.
         </div>`;
+}
+
+/* --------------------------------------------------------------------- */
+/* Lock panel — shown when a Quran/Qaidah assessment already exists today */
+async function renderLockPanel(root, sb, profile, classId, student, cls, existing, moduleType, req) {
+    const isAdmin = profile.role === 'admin';
+    const g = moduleType === 'quran_recitation'
+        ? (Array.isArray(existing.quran_recitation_grades) ? existing.quran_recitation_grades[0] : existing.quran_recitation_grades)
+        : (Array.isArray(existing.qaidah_grades) ? existing.qaidah_grades[0] : existing.qaidah_grades);
+    const total = moduleType === 'quran_recitation'
+        ? (g ? [g.fluency, g.makharij, g.tajweed, g.waqf, g.accuracy].reduce((s, v) => s + Number(v || 0), 0) : '')
+        : (g?.total_score ?? '');
+    const max = moduleType === 'quran_recitation' ? 25 : 20;
+    const teacherName = existing.teachers
+        ? `${existing.teachers.first_name || ''} ${existing.teachers.last_name || ''}`.trim() + ` (${existing.teachers.staff_code || ''})`
+        : '—';
+    const ts = existing.created_at ? new Date(existing.created_at).toLocaleString() : '';
+    const scoreDetails = moduleType === 'quran_recitation'
+        ? `Fluency ${g?.fluency ?? '—'} · Makharij ${g?.makharij ?? '—'} · Tajweed ${g?.tajweed ?? '—'} · Waqf ${g?.waqf ?? '—'} · Accuracy ${g?.accuracy ?? '—'}`
+        : `Letter Rec. ${g?.letter_recognition ?? '—'} · Joining&amp;Reading ${g?.joining_reading ?? '—'} · Makharij&amp;Tajweed ${g?.makharij_tajweed ?? '—'} · Fluency&amp;Conf. ${g?.fluency_confidence ?? '—'}`;
+
+    let requestSection;
+    if (isAdmin) {
+        requestSection = `
+            <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap; align-items:center">
+                <button class="btn btn-primary" id="admin-override">Override and re-grade</button>
+                <span class="text-muted" style="font-size:13px">Deletes today's row and reopens the grading form.</span>
+            </div>`;
+    } else if (req?.status === 'pending') {
+        requestSection = `
+            <div class="alert alert-info" style="margin-top:14px">
+                <strong>Regrade requested — pending admin review.</strong><br>
+                Submitted at ${new Date(req.created_at).toLocaleString()}.
+                ${req.reason ? `<br>Reason: <em>${escapeHtml(req.reason)}</em>` : ''}
+            </div>`;
+    } else if (req?.status === 'rejected') {
+        requestSection = `
+            <div class="alert alert-danger" style="margin-top:14px">
+                <strong>Regrade rejected by admin.</strong>
+                ${req.admin_note ? `<br>Reason: <em>${escapeHtml(req.admin_note)}</em>` : ''}
+            </div>
+            <div style="margin-top:10px"><button class="btn btn-primary" id="request-regrade">Request again</button></div>`;
+    } else {
+        requestSection = `
+            <p class="text-muted" style="margin-top:10px">Need a change? Ask an admin for permission.</p>
+            <button class="btn btn-primary" id="request-regrade">Request regrade</button>`;
+    }
+
+    root.innerHTML = `
+        <p style="margin-top:0; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+            <a class="back-link" href="#/assessments?class=${classId}"><span class="arrow">&larr;</span> ${cls?.name || 'Class'}</a>
+            <strong>${student.first_name} ${student.last_name}</strong>
+            <span class="chip">${student.student_code}</span>
+        </p>
+        <div class="card" style="border-left:4px solid var(--gold-500)">
+            <h3 style="margin-top:0; color: var(--green-700)">Already graded today</h3>
+            <div style="font-size:14px; line-height:1.7">
+                <strong>Saved by:</strong> ${escapeHtml(teacherName)}${ts ? ' at ' + ts : ''}<br>
+                <strong>Total:</strong> ${total === '' ? '—' : total} / ${max} &nbsp;·&nbsp;
+                <strong>Avg:</strong> ${existing.overall_score ?? '—'} &nbsp;·&nbsp;
+                <strong>Grade:</strong> ${existing.overall_grade ?? '—'}<br>
+                ${scoreDetails}
+            </div>
+            ${requestSection}
+        </div>
+
+        <dialog id="regrade-dialog" style="border:0; border-radius:14px; padding:0; max-width:480px; width:92%">
+            <form id="regrade-form" style="padding:22px 24px">
+                <h2 style="margin:0 0 8px; color: var(--green-700)">Request a regrade</h2>
+                <p class="text-muted" style="margin:0 0 12px; font-size:13px">
+                    Please give a brief reason — admin will see this when reviewing.
+                </p>
+                <label>Reason (10 - 500 characters)
+                    <textarea required minlength="10" maxlength="500" name="reason" rows="4" placeholder="e.g. Ali read again at home and improved; I'd like to re-score Tajweed."></textarea>
+                </label>
+                <div id="regrade-alert" style="margin-top:8px"></div>
+                <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px">
+                    <button class="btn" type="button" id="regrade-cancel">Cancel</button>
+                    <button class="btn btn-primary" type="submit" id="regrade-submit">Submit request</button>
+                </div>
+            </form>
+        </dialog>`;
+
+    if (isAdmin) {
+        document.getElementById('admin-override').addEventListener('click', async () => {
+            if (!confirm("Delete today's assessment and reopen the grading form?")) return;
+            const { error } = await sb.from('assessments').delete().eq('id', existing.id);
+            if (error) { toast.error(error.message); return; }
+            await audit('assessment.override_delete', 'assessment', existing.id,
+                        { student_id: student.id, module_type: moduleType });
+            toast.success('Override applied — opening fresh form.');
+            // Reload the page (same hash) to trigger the form
+            const h = location.hash;
+            location.hash = '';
+            location.hash = h;
+        });
+    } else {
+        const btn = document.getElementById('request-regrade');
+        if (btn) {
+            const dlg = document.getElementById('regrade-dialog');
+            btn.addEventListener('click', () => dlg.showModal());
+            document.getElementById('regrade-cancel').addEventListener('click', () => dlg.close());
+            document.getElementById('regrade-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const alertBox = document.getElementById('regrade-alert');
+                const submitBtn = document.getElementById('regrade-submit');
+                alertBox.innerHTML = '';
+                submitBtn.disabled = true; submitBtn.textContent = 'Sending…';
+                try {
+                    const reason = new FormData(e.target).get('reason') || '';
+                    const { error } = await sb.from('assessment_regrade_requests').insert({
+                        assessment_id:        existing.id,
+                        student_id:           student.id,
+                        module_type:          moduleType,
+                        assessed_on:          existing.assessed_on,
+                        requester_id:         profile.id,
+                        requester_teacher_id: profile.teacher_id,
+                        reason:               reason.toString().trim(),
+                    });
+                    if (error) throw error;
+                    await audit('regrade.request', 'assessment', existing.id, { reason });
+                    toast.success('Regrade request submitted. Admin will review.');
+                    dlg.close();
+                    const h = location.hash; location.hash = ''; location.hash = h;
+                } catch (err) {
+                    const msg = (err.message || '').includes('unique')
+                        ? 'A regrade request is already open for this assessment.'
+                        : (err.message || 'Failed to submit.');
+                    alertBox.innerHTML = '<div class="alert alert-danger">' + msg + '</div>';
+                } finally {
+                    submitBtn.disabled = false; submitBtn.textContent = 'Submit request';
+                }
+            });
+        }
+    }
+}
+
+function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 }
 
 /* --------------------------------------------------------------------- */

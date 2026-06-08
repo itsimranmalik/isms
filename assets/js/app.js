@@ -20,11 +20,12 @@ const NAV_BY_ROLE = {
         { hash: 'duas',         label: 'Duas',          icon: '🤲' },
         { hash: 'attendance',   label: 'Attendance',    icon: '✅' },
         { grp: 'Admin' },
-        { hash: 'reports',      label: 'Reports',       icon: '📄' },
-        { hash: 'admissions',   label: 'Admissions',    icon: '📝' },
-        { hash: 'admins',       label: 'Admins',        icon: '🛡️' },
-        { hash: 'audit',        label: 'Audit log',     icon: '📜' },
-        { hash: 'settings',     label: 'Settings',      icon: '⚙️' },
+        { hash: 'reports',          label: 'Reports',          icon: '📄' },
+        { hash: 'admissions',       label: 'Admissions',       icon: '📝' },
+        { hash: 'regrade-requests', label: 'Regrade Requests', icon: '🔁' },
+        { hash: 'admins',           label: 'Admins',           icon: '🛡️' },
+        { hash: 'audit',            label: 'Audit log',        icon: '📜' },
+        { hash: 'settings',         label: 'Settings',         icon: '⚙️' },
         { grp: 'You' },
         { hash: 'account',      label: 'My Account',    icon: '👤' },
         { hash: 'guidelines',   label: 'Guidelines',    icon: '📑' },
@@ -83,12 +84,20 @@ function renderSidebar() {
     const items = NAV_BY_ROLE[PROFILE.role] || NAV_BY_ROLE.student;
     nav.innerHTML = items.map(i =>
         i.grp ? `<div class="grp">${i.grp}</div>`
-              : `<a href="#/${i.hash}" data-route="${i.hash}"><span>${i.icon}</span> ${i.label}</a>`
+              : `<a href="#/${i.hash}" data-route="${i.hash}"><span>${i.icon}</span> ${i.label}<span class="nav-badge" data-badge-for="${i.hash}" style="display:none"></span></a>`
     ).join('');
 
     document.getElementById('app-user').innerHTML =
         `<div class="who">${PROFILE.full_name}</div>
          <div style="text-transform:capitalize">${PROFILE.role}</div>`;
+
+    // Admin: live count of pending regrade requests as a sidebar badge.
+    if (PROFILE.role === 'admin') {
+        refreshRegradeBadge();
+        // Refresh every minute, and whenever the user navigates.
+        setInterval(refreshRegradeBadge, 60_000);
+        window.addEventListener('hashchange', refreshRegradeBadge);
+    }
 
     // Load school name from settings.
     supabase.from('settings').select('school_name').eq('id', 1).single()
@@ -97,6 +106,22 @@ function renderSidebar() {
                 document.getElementById('brand-school').textContent = data.school_name;
             }
         });
+}
+
+async function refreshRegradeBadge() {
+    const badge = document.querySelector('.nav-badge[data-badge-for="regrade-requests"]');
+    if (!badge) return;
+    const { count, error } = await supabase
+        .from('assessment_regrade_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending');
+    if (error) return;
+    if (count && count > 0) {
+        badge.textContent = String(count);
+        badge.style.display = '';
+    } else {
+        badge.style.display = 'none';
+    }
 }
 
 function bindTopbar() {
