@@ -6,6 +6,7 @@ export const title = 'Students';
 
 export async function render(root, { profile, supabase }) {
     const canWrite = profile.role === 'admin';
+    const canSetStage = profile.role === 'admin' || profile.role === 'teacher';
     root.innerHTML = `
         <div class="card">
             <div class="toolbar">
@@ -82,10 +83,38 @@ export async function render(root, { profile, supabase }) {
                     <button class="btn btn-primary" type="submit" id="dlg-save">Save</button>
                 </div>
             </form>
+        </dialog>
+
+        <dialog id="stage-dialog" style="border:0; border-radius: var(--radius); padding:0; max-width:420px; width:92%">
+            <form id="stage-form" style="padding:24px">
+                <h2 id="stage-title" style="margin-top:0; color: var(--green-700)">Update reading stage</h2>
+                <p class="text-muted" id="stage-subtitle" style="margin-top:0; font-size:13px"></p>
+                <input type="hidden" name="student_id">
+                <div class="form">
+                    <label>Reading stage
+                        <select name="reading_stage">
+                            <option value="">— not set —</option>
+                            <option value="qaidah">Qaidah</option>
+                            <option value="juz">Juz Amm, 1, 2</option>
+                            <option value="quran">Quran</option>
+                        </select>
+                    </label>
+                    <label>Qaidah page
+                        <input type="number" min="0" max="200" name="qaidah_page" placeholder="only for Qaidah / Juz">
+                    </label>
+                </div>
+                <div id="stage-alert" style="margin-top:8px"></div>
+                <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px">
+                    <button class="btn" type="button" id="stage-cancel">Cancel</button>
+                    <button class="btn btn-primary" type="submit" id="stage-save">Save</button>
+                </div>
+            </form>
         </dialog>`;
 
     const dlg = document.getElementById('student-dialog');
     const form = document.getElementById('student-form');
+    const stageDlg  = document.getElementById('stage-dialog');
+    const stageForm = document.getElementById('stage-form');
     const search = document.getElementById('search');
     let cache = [];
 
@@ -136,13 +165,17 @@ export async function render(root, { profile, supabase }) {
                         ? '<span class="chip">linked</span>'
                         : (canWrite ? '<button class="btn add-login-btn" data-id="' + s.id + '">+ Create login</button>' : '<span class="chip warn">no login</span>')}</td>
                 <td><span class="chip ${s.status === 'active' ? '' : 'warn'}">${s.status}</span></td>
-                <td>${canWrite ? `<button class="btn edit-btn" data-id="${s.id}">Edit</button>
-                                   <button class="btn del-btn"  data-id="${s.id}">Delete</button>` : ''}</td>
+                <td>
+                    ${canSetStage ? `<button class="btn stage-btn" data-id="${s.id}">Stage</button>` : ''}
+                    ${canWrite ? `<button class="btn edit-btn" data-id="${s.id}">Edit</button>
+                                  <button class="btn del-btn"  data-id="${s.id}">Delete</button>` : ''}
+                </td>
             </tr>`).join('') || '<tr><td colspan="9"><em>No students.</em></td></tr>';
 
         tbody.querySelectorAll('.edit-btn').forEach(b => b.addEventListener('click', () => openEdit(b.dataset.id)));
         tbody.querySelectorAll('.del-btn').forEach(b => b.addEventListener('click', () => del(b.dataset.id)));
         tbody.querySelectorAll('.add-login-btn').forEach(b => b.addEventListener('click', () => openEdit(b.dataset.id)));
+        tbody.querySelectorAll('.stage-btn').forEach(b => b.addEventListener('click', () => openStage(b.dataset.id)));
     }
 
     function openEdit(id) {
@@ -273,6 +306,53 @@ export async function render(root, { profile, supabase }) {
         if (arr.length === 0) return '<span class="chip warn">unassigned</span>';
         return arr.map(n => `<span class="chip" style="margin-right:4px">${n}</span>`).join('');
     }
+
+    /* -------- Mini stage editor (teachers + admins) ----------------- */
+    function openStage(id) {
+        const s = cache.find(x => String(x.id) === String(id));
+        if (!s) return;
+        document.getElementById('stage-title').textContent = `Update stage — ${s.first_name} ${s.last_name}`;
+        document.getElementById('stage-subtitle').textContent =
+            `Class: ${(s.class_names || []).join(', ') || '—'} · Code: ${s.student_code}`;
+        stageForm.elements['student_id'].value   = s.id;
+        stageForm.elements['reading_stage'].value = s.reading_stage || '';
+        stageForm.elements['qaidah_page'].value   = s.qaidah_page ?? '';
+        document.getElementById('stage-alert').innerHTML = '';
+        stageDlg.showModal();
+    }
+    document.getElementById('stage-cancel').addEventListener('click', () => stageDlg.close());
+
+    stageForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const alertBox = document.getElementById('stage-alert');
+        const btn      = document.getElementById('stage-save');
+        alertBox.innerHTML = '';
+        btn.disabled = true; btn.textContent = 'Saving…';
+        try {
+            const fd        = new FormData(stageForm);
+            const studentId = Number(fd.get('student_id'));
+            const stageVal  = (fd.get('reading_stage') || '').toString();
+            const pageRaw   = (fd.get('qaidah_page')   || '').toString();
+            const page      = pageRaw === '' ? null : Number(pageRaw);
+
+            const { error } = await supabase.rpc('set_student_reading_stage', {
+                p_student_id: studentId,
+                p_stage:      stageVal || null,
+                p_page:       page,
+            });
+            if (error) throw error;
+            await audit('student.stage_update', 'student', studentId,
+                        { reading_stage: stageVal || null, qaidah_page: page });
+            toast.success('Reading stage updated');
+            stageDlg.close();
+            load();
+        } catch (err) {
+            alertBox.innerHTML = '<div class="alert alert-danger">' + (err.message || 'Update failed.') + '</div>';
+            toast.error(err.message || 'Update failed');
+        } finally {
+            btn.disabled = false; btn.textContent = 'Save';
+        }
+    });
 
     load();
 }
