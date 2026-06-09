@@ -14,6 +14,7 @@
                     <a href="about.html">About</a>
                     <a href="admissions.html">Admissions</a>
                     <a href="contact.html">Contact</a>
+                    <button class="nav-theme-btn" aria-label="Toggle dark mode" title="Toggle dark mode">🌓</button>
                     <a href="login.html" class="btn btn-primary">Sign in</a>
                 </nav>
             </div>

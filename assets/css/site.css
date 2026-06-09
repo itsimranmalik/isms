@@ -229,3 +229,274 @@ h3 { font-size: 18px; }
 
 /* ----- arabic ----- */
 .arabic { font-family: "Amiri", "Noto Naskh Arabic", serif; direction: rtl; font-size: 1.15em; }
+
+/* ===================================================================
+   MODERNISATION — typography, animations, new components
+   =================================================================== */
+
+/* --- Font stack: Poppins + Playfair Display (loaded via <head>) --- */
+body {
+    font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                 "Amiri", "Noto Naskh Arabic", sans-serif;
+}
+h1, h2, h3 {
+    font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+    color: var(--green-800);
+}
+[data-theme="dark"] h1, [data-theme="dark"] h2, [data-theme="dark"] h3 {
+    color: var(--green-50);
+}
+
+/* --- Hero entrance animation --- */
+@keyframes fade-up {
+    from { opacity: 0; transform: translateY(32px); }
+    to   { opacity: 1; transform: none; }
+}
+@keyframes fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+.hero .hero-inner > div:first-child {
+    animation: fade-up 0.75s cubic-bezier(.22,.68,0,1.2) both;
+}
+.hero .hero-art {
+    animation: fade-in 0.8s ease 0.25s both;
+}
+
+/* --- Scroll-reveal utility --- */
+.reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.reveal.visible {
+    opacity: 1;
+    transform: none;
+}
+.reveal-delay-1 { transition-delay: 0.08s; }
+.reveal-delay-2 { transition-delay: 0.16s; }
+.reveal-delay-3 { transition-delay: 0.24s; }
+.reveal-delay-4 { transition-delay: 0.32s; }
+
+/* --- Stats bar --- */
+.stat-bar {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 22px 0;
+}
+.stat-bar-inner {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    align-items: center;
+}
+.stat-item {
+    text-align: center;
+    padding: 8px 28px;
+    border-right: 1px solid var(--border);
+    flex: 1;
+    min-width: 120px;
+}
+.stat-item:last-child { border-right: none; }
+.stat-number {
+    font-size: 30px;
+    font-weight: 700;
+    color: var(--green-700);
+    line-height: 1.1;
+    font-family: "Poppins", sans-serif;
+    letter-spacing: -.02em;
+}
+.stat-label {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 3px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+}
+[data-theme="dark"] .stat-number { color: var(--green-500); }
+@media (max-width: 640px) {
+    .stat-item { border-right: none; padding: 10px 0; min-width: 50%; border-bottom: 1px solid var(--border); }
+    .stat-item:nth-child(odd) { border-right: 1px solid var(--border); }
+    .stat-item:nth-last-child(-n+2) { border-bottom: none; }
+}
+
+/* --- Enhanced hero-art --- */
+.hero-art {
+    border-color: rgba(212,175,55,.3);
+    overflow: hidden;
+}
+.hero-art::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+        radial-gradient(circle at 8px 8px, rgba(212,175,55,.07) 1px, transparent 0);
+    background-size: 32px 32px;
+    pointer-events: none;
+    z-index: 0;
+}
+.hero-art-content {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+}
+.hero-art .arabesque {
+    font-size: clamp(60px, 10vw, 112px);
+    text-shadow: 0 2px 20px rgba(5,102,86,.2);
+}
+
+/* --- Section eyebrow label --- */
+.section-eyebrow {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--green-600);
+    margin-bottom: 10px;
+}
+[data-theme="dark"] .section-eyebrow { color: var(--green-500); }
+
+/* --- Enhanced feature card --- */
+.card.feature {
+    border-top: 3px solid transparent;
+    transition: transform .2s ease, box-shadow .2s ease, border-top-color .2s ease;
+}
+.card.feature:hover {
+    border-top-color: var(--green-500);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+.card .icon {
+    background: linear-gradient(135deg, var(--green-50) 0%, rgba(16,185,129,.08) 100%);
+    border: 1px solid var(--green-100);
+}
+
+/* --- CTA band with geometric texture --- */
+.cta-band {
+    background: linear-gradient(135deg, var(--green-900) 0%, #033d2e 50%, #022820 100%);
+    position: relative;
+    overflow: hidden;
+}
+.cta-band::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+        radial-gradient(circle at 2px 2px, rgba(212,175,55,.1) 1px, transparent 0);
+    background-size: 28px 28px;
+    pointer-events: none;
+}
+.cta-band .container { position: relative; z-index: 1; }
+
+/* --- Testimonial cards --- */
+.testimonials-grid {
+    display: grid;
+    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+.testimonial-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 24px 24px;
+    box-shadow: var(--shadow);
+    position: relative;
+    transition: transform .2s, box-shadow .2s;
+}
+.testimonial-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+.testimonial-card::before {
+    content: "\201C";
+    position: absolute;
+    top: 12px; left: 18px;
+    font-size: 60px;
+    line-height: 1;
+    color: var(--green-100);
+    font-family: Georgia, serif;
+    pointer-events: none;
+}
+[data-theme="dark"] .testimonial-card::before { color: rgba(5,102,86,.2); }
+.testimonial-text {
+    position: relative;
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.75;
+    padding-top: 20px;
+    font-style: italic;
+}
+.testimonial-author {
+    margin-top: 18px;
+    font-weight: 600;
+    color: var(--green-700);
+    font-size: 14px;
+    font-style: normal;
+}
+.testimonial-role {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+    font-style: normal;
+}
+
+/* --- Page hero (about, admissions, contact) --- */
+.page-hero {
+    padding: 56px 0 40px;
+    background: linear-gradient(170deg, var(--green-50) 0%, var(--bg) 100%);
+    border-bottom: 1px solid var(--border);
+}
+[data-theme="dark"] .page-hero {
+    background: linear-gradient(170deg, rgba(5,102,86,.08) 0%, var(--bg) 100%);
+}
+.page-hero .chip { margin-bottom: 14px; }
+.page-hero h1 { margin-top: 0; margin-bottom: 12px; }
+
+/* --- Contact page responsive grid --- */
+.contact-grid {
+    display: grid;
+    gap: 32px;
+    grid-template-columns: 1fr 1.2fr;
+}
+@media (max-width: 800px) {
+    .contact-grid { grid-template-columns: 1fr; }
+}
+
+/* --- Chip improvements --- */
+.chip.gold {
+    background: linear-gradient(135deg, rgba(212,175,55,.15), rgba(212,175,55,.05));
+    border: 1px solid rgba(212,175,55,.3);
+}
+
+/* --- Improved footer gradient --- */
+.footer {
+    background: linear-gradient(180deg, var(--green-900) 0%, #011a14 100%);
+}
+
+/* --- Nav theme toggle --- */
+.nav-theme-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    cursor: pointer;
+    color: var(--text);
+    font-size: 16px;
+    line-height: 1;
+    transition: background .12s;
+    flex-shrink: 0;
+}
+.nav-theme-btn:hover { background: var(--green-50); }
+
+/* --- Dot-grid section background --- */
+.section-pattern { position: relative; }
+.section-pattern::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+        radial-gradient(circle at 1px 1px, rgba(5,102,86,.06) 1px, transparent 0);
+    background-size: 28px 28px;
+    pointer-events: none;
+}
+.section-pattern .container { position: relative; }

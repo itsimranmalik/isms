@@ -196,6 +196,45 @@ body[data-app="1"] {
     .app-sidebar { width: 250px; }
 }
 
+/* ===================================================================
+   Portal modernisation — KPI hover, improved topbar, loading animation
+   =================================================================== */
+
+/* Poppins in the portal */
+.app-brand, .app-nav a, .app-user, .app-topbar h2,
+.kpi .label, .kpi .value, .field, .toolbar {
+    font-family: "Poppins", -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* KPI hover lift */
+.kpi {
+    transition: transform .15s ease, box-shadow .15s ease;
+    cursor: default;
+}
+.kpi:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+/* Pulsing loader */
+@keyframes portal-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .35; }
+}
+.loader { animation: portal-pulse 1.5s ease-in-out infinite; }
+
+/* Sidebar brand subtle glow on hover */
+.app-brand:hover .crescent {
+    filter: drop-shadow(0 0 6px rgba(212,175,55,.5));
+    transition: filter .2s;
+}
+
+/* Topbar title use Playfair Display */
+.app-topbar h2 {
+    font-family: "Playfair Display", Georgia, serif;
+    letter-spacing: -.01em;
+}
+
 /* Print-friendly Help view (works on any screen) */
 @media print {
     .app-sidebar, .app-topbar, #ism-toast-host { display: none !important; }

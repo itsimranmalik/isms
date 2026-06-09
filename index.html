@@ -6,16 +6,20 @@
     <title>Madrasa — Islamic School Management</title>
     <meta name="description" content="A modern Islamic school combining Quran recitation, memorisation, daily duas, and academic excellence.">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='50' font-size='52'>☪</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Playfair+Display:wght@700&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/site.css">
 </head>
 <body>
     <div id="site-nav"></div>
 
+    <!-- Hero -->
     <section class="hero">
         <div class="container hero-inner">
             <div>
                 <span class="chip gold">An Islamic Academy</span>
-                <h1 style="margin-top:16px">Where Quran, character, and confidence grow together.</h1>
+                <h1 style="margin-top:16px">Where Quran, character,<br>and confidence grow together.</h1>
                 <p class="lead">
                     A modern madrasa rooted in tradition — Quran recitation graded with care,
                     memorisation tracked surah by surah, and daily duas embedded into every lesson.
@@ -26,72 +30,174 @@
                 </div>
             </div>
             <div class="hero-art">
-                <div class="arabesque">ٱقْرَأْ</div>
-                <div class="verse">"Read in the name of your Lord who created." — Quran 96:1</div>
+                <div class="hero-art-content">
+                    <div class="arabesque">ٱقْرَأْ</div>
+                    <div class="verse">"Read in the name of your Lord who created." — Quran 96:1</div>
+                </div>
             </div>
         </div>
     </section>
 
-    <section class="section">
+    <!-- Stats bar -->
+    <div class="stat-bar">
         <div class="container">
-            <h2 class="text-center">What we focus on</h2>
-            <p class="lead text-center" style="margin: 0 auto 32px">Four core modules guide every student, every term.</p>
+            <div class="stat-bar-inner">
+                <div class="stat-item">
+                    <div class="stat-number">250+</div>
+                    <div class="stat-label">Students enrolled</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">30+</div>
+                    <div class="stat-label">Qualified teachers</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">5</div>
+                    <div class="stat-label">Core subjects</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">100%</div>
+                    <div class="stat-label">Parent visibility</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Core modules -->
+    <section class="section section-pattern">
+        <div class="container">
+            <div class="text-center reveal">
+                <span class="section-eyebrow">Our curriculum</span>
+                <h2>What we focus on</h2>
+                <p class="lead" style="margin: 0 auto 40px">Four core modules guide every student, every term.</p>
+            </div>
             <div class="grid grid-4">
-                <div class="card feature">
+                <div class="card feature reveal reveal-delay-1">
                     <div class="icon">۝</div>
                     <h3>Quran Recitation</h3>
-                    <p class="text-muted">Five-category Tajweed assessment graded 0–5 with teacher recommendations.</p>
+                    <p class="text-muted">Five-category Tajweed assessment graded 0–5 with detailed teacher recommendations and progress tracking.</p>
                 </div>
-                <div class="card feature">
+                <div class="card feature reveal reveal-delay-2">
                     <div class="icon">📖</div>
                     <h3>Memorisation</h3>
-                    <p class="text-muted">Surah and Juz tracking with revision reminders so memorised verses stay strong.</p>
+                    <p class="text-muted">Surah and Juz tracking with revision reminders so memorised verses stay strong long-term.</p>
                 </div>
-                <div class="card feature">
+                <div class="card feature reveal reveal-delay-3">
                     <div class="icon">🤲</div>
                     <h3>Daily Duas</h3>
-                    <p class="text-muted">Curated daily duas with Arabic, transliteration, translation, and oral checks.</p>
+                    <p class="text-muted">Curated daily duas with Arabic, transliteration, translation, and regular oral assessments.</p>
                 </div>
-                <div class="card feature">
+                <div class="card feature reveal reveal-delay-4">
                     <div class="icon">🕌</div>
                     <h3>Namaz Duas</h3>
-                    <p class="text-muted">Full prayer recitation from Takbir to Salam — taught, verified, and reviewed.</p>
+                    <p class="text-muted">Full prayer recitation from Takbir to Salam — taught, verified, and reviewed every term.</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <section class="section" style="background: var(--green-900); color: #fff">
+    <!-- How the admission process works -->
+    <section class="section" style="background: var(--green-50)">
+        <div class="container">
+            <div class="text-center reveal">
+                <span class="section-eyebrow">Getting started</span>
+                <h2>Three steps to enrolment</h2>
+                <p class="lead" style="margin: 0 auto 40px">Simple, transparent, and family-friendly from day one.</p>
+            </div>
+            <div class="grid grid-3">
+                <div class="card reveal reveal-delay-1" style="border-top: 3px solid var(--green-500)">
+                    <div class="icon" style="font-size:20px; font-weight:700; font-family:'Poppins',sans-serif">1</div>
+                    <h3>Apply online</h3>
+                    <p class="text-muted">Fill in our short admissions form. We come back within 2 working days — no long waits, no paperwork.</p>
+                    <a href="admissions.html" class="btn btn-primary" style="margin-top:8px">Start application</a>
+                </div>
+                <div class="card reveal reveal-delay-2" style="border-top: 3px solid var(--gold-500)">
+                    <div class="icon" style="font-size:20px; font-weight:700; font-family:'Poppins',sans-serif">2</div>
+                    <h3>Family chat</h3>
+                    <p class="text-muted">A short call so we understand your child, answer your questions, and find the right class placement.</p>
+                </div>
+                <div class="card reveal reveal-delay-3" style="border-top: 3px solid var(--green-500)">
+                    <div class="icon" style="font-size:20px; font-weight:700; font-family:'Poppins',sans-serif">3</div>
+                    <h3>Welcome in</h3>
+                    <p class="text-muted">Class assigned, portal login created, and your child meets their teacher — ready to begin.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Portal CTA -->
+    <section class="section cta-band">
         <div class="container">
             <div class="grid grid-3" style="align-items: center">
                 <div style="grid-column: span 2">
-                    <h2 style="color: #fff">A real portal for teachers and students.</h2>
-                    <p style="color: rgba(255,255,255,.85); max-width: 720px">
-                        Sign in to see Quran recitation history, memorisation progress, attendance, teacher comments
-                        and download a beautifully-formatted progress report — anytime, from any device.
+                    <span class="section-eyebrow" style="color: var(--gold-300)">Student &amp; teacher portal</span>
+                    <h2 style="color: #fff">A real-time portal for teachers and students.</h2>
+                    <p style="color: rgba(255,255,255,.85); max-width: 620px; margin-top: 0">
+                        Sign in to see Quran recitation history, memorisation progress, attendance,
+                        teacher comments — and download a beautifully-formatted progress report, anytime, from any device.
                     </p>
                 </div>
                 <div style="text-align: right">
-                    <a href="login.html" class="btn btn-gold btn-lg">Sign in to portal</a>
+                    <a href="login.html" class="btn btn-gold btn-lg">Sign in to portal →</a>
                 </div>
             </div>
         </div>
     </section>
 
+    <!-- Why choose us -->
     <section class="section">
         <div class="container">
-            <div class="grid grid-3">
-                <div class="card">
+            <div class="text-center reveal">
+                <span class="section-eyebrow">Why families choose us</span>
+                <h2>Learning that goes beyond the classroom</h2>
+            </div>
+            <div class="grid grid-3" style="margin-top: 32px">
+                <div class="card feature reveal reveal-delay-1">
+                    <div class="icon">👥</div>
                     <h3>Small class sizes</h3>
-                    <p class="text-muted">Each teacher works with a small group so feedback stays personal.</p>
+                    <p class="text-muted">Each teacher works with a small, focused group so feedback stays personal and progress stays visible.</p>
                 </div>
-                <div class="card">
+                <div class="card feature reveal reveal-delay-2">
+                    <div class="icon">📊</div>
                     <h3>Track every student</h3>
-                    <p class="text-muted">Per-student dashboards capture strengths and weaknesses week by week.</p>
+                    <p class="text-muted">Per-student dashboards capture strengths and weaknesses week by week, term by term.</p>
                 </div>
-                <div class="card">
+                <div class="card feature reveal reveal-delay-3">
+                    <div class="icon">📄</div>
                     <h3>Parents kept informed</h3>
-                    <p class="text-muted">PDF report cards and attendance updates — no chasing teachers for news.</p>
+                    <p class="text-muted">PDF report cards and live attendance updates — no chasing teachers for news about your child.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials -->
+    <section class="section section-pattern" style="background: var(--bg)">
+        <div class="container">
+            <div class="text-center reveal">
+                <span class="section-eyebrow">From our community</span>
+                <h2>What families and teachers say</h2>
+            </div>
+            <div class="testimonials-grid" style="margin-top: 36px">
+                <div class="testimonial-card reveal reveal-delay-1">
+                    <p class="testimonial-text">
+                        "The progress reports are incredibly detailed. I can see exactly which categories my son needs to work on and how his scores have improved week on week. It keeps us all accountable."
+                    </p>
+                    <div class="testimonial-author">Sister Fatima A.</div>
+                    <div class="testimonial-role">Parent · Year 3 student</div>
+                </div>
+                <div class="testimonial-card reveal reveal-delay-2">
+                    <p class="testimonial-text">
+                        "As a teacher, being able to record recitation grades in seconds — with notes — has transformed how I give feedback. Students know exactly where they stand and what to focus on next."
+                    </p>
+                    <div class="testimonial-author">Ustadh Yusuf M.</div>
+                    <div class="testimonial-role">Quran Teacher · 7 years</div>
+                </div>
+                <div class="testimonial-card reveal reveal-delay-3">
+                    <p class="testimonial-text">
+                        "My daughter used to struggle remembering which duas she'd been assessed on. Now she logs in herself, checks her status, and comes to class prepared. The portal has been a game-changer."
+                    </p>
+                    <div class="testimonial-author">Brother Khalid R.</div>
+                    <div class="testimonial-role">Parent · Two children enrolled</div>
                 </div>
             </div>
         </div>

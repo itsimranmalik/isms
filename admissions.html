@@ -5,35 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Admissions — Madrasa</title>
     <meta name="description" content="Apply for admission to our madrasa. Simple, transparent process.">
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='50' font-size='52'>&#9770;</text></svg>">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='50' font-size='52'>☪</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Playfair+Display:wght@700&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/site.css">
 </head>
 <body>
     <div id="site-nav"></div>
 
-    <section class="section">
+    <section class="page-hero">
         <div class="container">
             <span class="chip gold">Admissions</span>
-            <h1 style="margin-top:12px">Apply for admission</h1>
+            <h1>Apply for admission</h1>
             <p class="lead">Open enrolment year-round. Most cohorts begin in September; mid-year intake is available on request.</p>
         </div>
     </section>
 
-    <section class="section-tight">
+    <section class="section-tight section-pattern">
         <div class="container">
-            <div class="grid grid-3">
-                <div class="card">
-                    <div class="icon">1</div>
+            <div class="grid grid-3" style="margin-top: 8px">
+                <div class="card reveal reveal-delay-1" style="border-top: 3px solid var(--green-500)">
+                    <div class="icon" style="font-size:20px; font-weight:700; font-family:'Poppins',sans-serif">1</div>
                     <h3>Apply online</h3>
                     <p class="text-muted">Fill in the short form below. We will come back within 2 working days.</p>
                 </div>
-                <div class="card">
-                    <div class="icon">2</div>
+                <div class="card reveal reveal-delay-2" style="border-top: 3px solid var(--gold-500)">
+                    <div class="icon" style="font-size:20px; font-weight:700; font-family:'Poppins',sans-serif">2</div>
                     <h3>Family chat</h3>
                     <p class="text-muted">A short call so we can understand your child and answer your questions.</p>
                 </div>
-                <div class="card">
-                    <div class="icon">3</div>
+                <div class="card reveal reveal-delay-3" style="border-top: 3px solid var(--green-500)">
+                    <div class="icon" style="font-size:20px; font-weight:700; font-family:'Poppins',sans-serif">3</div>
                     <h3>Welcome</h3>
                     <p class="text-muted">Class assigned, login created, and your child meets their teacher.</p>
                 </div>
@@ -43,9 +46,12 @@
 
     <section class="section">
         <div class="container" style="max-width: 760px">
-            <h2>Application form</h2>
-            <p class="text-muted">All fields marked * are required.</p>
-            <form class="form" id="application-form" style="margin-top: 18px">
+            <div class="reveal">
+                <span class="section-eyebrow">Application form</span>
+                <h2>Tell us about your child</h2>
+                <p class="text-muted">All fields marked * are required. We aim to respond within 2 working days.</p>
+            </div>
+            <form class="form reveal" id="application-form" style="margin-top: 24px">
                 <div class="row">
                     <label>Child first name *<input required name="first_name"></label>
                     <label>Child last name *<input required name="last_name"></label>
@@ -73,8 +79,6 @@
     <script src="assets/js/site.js"></script>
     <script src="assets/js/config.js"></script>
     <script type="module">
-        // Submissions go to the public.admissions table in Supabase. RLS lets
-        // anonymous visitors INSERT; only admins can read them back.
         import { supabase } from './assets/js/supabase-client.js';
         import { toast } from './assets/js/modules/toast.js';
 

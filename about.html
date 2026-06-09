@@ -6,15 +6,18 @@
     <title>About — Madrasa</title>
     <meta name="description" content="About our madrasa: mission, methodology, and the values we teach.">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='50' font-size='52'>☪</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Playfair+Display:wght@700&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="assets/css/site.css">
 </head>
 <body>
     <div id="site-nav"></div>
 
-    <section class="section">
+    <section class="page-hero">
         <div class="container">
             <span class="chip gold">About us</span>
-            <h1 style="margin-top:12px">Tradition. Discipline. Compassion.</h1>
+            <h1>Tradition. Discipline. Compassion.</h1>
             <p class="lead">
                 Founded to bring classical Islamic teaching into modern households,
                 we combine timeless methodology with the tools families actually need today.
@@ -22,20 +25,20 @@
         </div>
     </section>
 
-    <section class="section-tight">
+    <section class="section-tight section-pattern">
         <div class="container">
-            <div class="grid grid-3">
-                <div class="card">
+            <div class="grid grid-3" style="margin-top: 8px">
+                <div class="card feature reveal reveal-delay-1">
                     <div class="icon">📚</div>
                     <h3>Our methodology</h3>
                     <p class="text-muted">Tajweed grounded in classical schools, taught in small groups with structured weekly assessments and clear progress markers.</p>
                 </div>
-                <div class="card">
+                <div class="card feature reveal reveal-delay-2">
                     <div class="icon">🧭</div>
                     <h3>Our values</h3>
                     <p class="text-muted">Ihsan, sabr, ikhlas. We grade not just recitation but akhlaq — and we mean it: teacher feedback is honest and kind.</p>
                 </div>
-                <div class="card">
+                <div class="card feature reveal reveal-delay-3">
                     <div class="icon">🤝</div>
                     <h3>Our community</h3>
                     <p class="text-muted">Families are partners. Parents see what we see, so home practice reinforces classroom learning.</p>
@@ -46,10 +49,18 @@
 
     <section class="section">
         <div class="container">
-            <h2>How we grade Quran recitation</h2>
-            <p class="lead">Every recitation assessment scores five categories on a 0–5 scale.</p>
-            <table class="table" style="margin-top: 16px">
-                <thead><tr><th>Category</th><th>What we listen for</th></tr></thead>
+            <div class="reveal">
+                <span class="section-eyebrow">Assessment framework</span>
+                <h2>How we grade Quran recitation</h2>
+                <p class="lead">Every recitation assessment scores five categories on a 0–5 scale.</p>
+            </div>
+            <table class="table reveal" style="margin-top: 24px">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>What we listen for</th>
+                    </tr>
+                </thead>
                 <tbody>
                     <tr><td><strong>Fluency</strong></td><td>Smooth, confident flow without stops or restarts.</td></tr>
                     <tr><td><strong>Makharij</strong></td><td>Correct articulation points for each letter (huroof).</td></tr>
@@ -61,6 +72,16 @@
             <p class="text-muted" style="margin-top: 18px">
                 A teacher's notes accompany every score. Weaknesses become next week's focus.
             </p>
+        </div>
+    </section>
+
+    <section class="section cta-band">
+        <div class="container" style="text-align: center; padding-top: 48px; padding-bottom: 48px">
+            <h2 style="color: #fff; margin-bottom: 12px">Ready to join our community?</h2>
+            <p style="color: rgba(255,255,255,.8); margin-bottom: 28px; font-size: 17px">
+                Applications are open year-round. Most cohorts begin in September.
+            </p>
+            <a href="admissions.html" class="btn btn-gold btn-lg">Apply for admission</a>
         </div>
     </section>
 
