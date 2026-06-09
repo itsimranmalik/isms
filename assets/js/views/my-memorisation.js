@@ -10,12 +10,17 @@ export async function render(root, { profile, supabase }) {
         root.innerHTML = '<div class="alert alert-info">Your student profile isn\'t linked yet.</div>';
         return;
     }
-    const [{ data: surahs }, { data: prog }] = await Promise.all([
+    const [{ data: surahsRaw }, { data: prog }] = await Promise.all([
         supabase.from('surahs').select('id, number, name_arabic, name_transliteration, total_ayahs').order('number'),
         supabase.from('memorisation_progress')
             .select('surah_id, status, memorisation_score, quality_score, last_revised_on')
             .eq('student_id', profile.student_id),
     ]);
+    // Display order: Al-Fatihah first, then 114 → 113 → … → 2.
+    const surahs = [
+        ...(surahsRaw || []).filter(s => Number(s.number) === 1),
+        ...(surahsRaw || []).filter(s => Number(s.number) !== 1).sort((a, b) => Number(b.number) - Number(a.number)),
+    ];
     const map = new Map((prog || []).map(p => [p.surah_id, p]));
 
     let applicable = 0, completed = 0;

@@ -33,8 +33,13 @@ export async function render(root, { profile, supabase }) {
         classes = (data || []).map(r => r.classes).filter(Boolean);
     }
 
-    const { data: surahs } = await supabase.from('surahs')
+    const { data: surahsRaw } = await supabase.from('surahs')
         .select('id, number, name_transliteration, total_ayahs').order('number');
+    // Display order: Al-Fatihah first, then 114 → 113 → 112 → … → 2 (memorisation typically starts from the short surahs at the end).
+    const surahs = [
+        ...(surahsRaw || []).filter(s => Number(s.number) === 1),
+        ...(surahsRaw || []).filter(s => Number(s.number) !== 1).sort((a, b) => Number(b.number) - Number(a.number)),
+    ];
 
     root.innerHTML = `
         <div class="card">
