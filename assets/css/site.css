@@ -127,8 +127,9 @@ h3 { font-size: 18px; }
 }
 .hero-art .arabesque {
     font-family: "Amiri", "Noto Naskh Arabic", serif;
-    font-size: clamp(48px, 8vw, 96px); color: var(--green-700);
+    font-size: clamp(60px, 10vw, 112px); color: var(--green-700);
     text-align: center; direction: rtl;
+    text-shadow: 0 2px 20px rgba(5,102,86,.2);
 }
 .hero-art .verse { color: var(--muted); margin-top: 12px; text-align: center; }
 @media (max-width: 800px) { .hero-inner { grid-template-columns: 1fr; } }
@@ -241,7 +242,6 @@ body {
 }
 h1, h2, h3 {
     font-family: "Playfair Display", Georgia, "Times New Roman", serif;
-    color: var(--green-800);
 }
 [data-theme="dark"] h1, [data-theme="dark"] h2, [data-theme="dark"] h3 {
     color: var(--green-50);
@@ -264,12 +264,13 @@ h1, h2, h3 {
 }
 
 /* --- Scroll-reveal utility --- */
-.reveal {
+/* Only hide reveals when JS has loaded; without JS elements are always visible */
+html.js-enabled .reveal {
     opacity: 0;
     transform: translateY(24px);
     transition: opacity 0.6s ease, transform 0.6s ease;
 }
-.reveal.visible {
+html.js-enabled .reveal.visible {
     opacity: 1;
     transform: none;
 }
@@ -341,10 +342,6 @@ h1, h2, h3 {
     position: relative;
     z-index: 1;
     text-align: center;
-}
-.hero-art .arabesque {
-    font-size: clamp(60px, 10vw, 112px);
-    text-shadow: 0 2px 20px rgba(5,102,86,.2);
 }
 
 /* --- Section eyebrow label --- */

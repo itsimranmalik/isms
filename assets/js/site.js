@@ -2,6 +2,9 @@
 (function () {
     'use strict';
 
+    // Progressive enhancement: mark JS available so CSS can hide .reveal elements
+    document.documentElement.classList.add('js-enabled');
+
     // Apply saved theme immediately (before DOMContentLoaded) to prevent flash
     const saved = localStorage.getItem('isms-theme') || 'light';
     document.documentElement.setAttribute('data-theme', saved);
@@ -36,7 +39,8 @@
             if ((a.getAttribute('href') || '').toLowerCase().endsWith(here)) a.classList.add('active');
         });
 
-        // Scroll-reveal: observe all .reveal elements
+        // Scroll-reveal: observe all .reveal elements (NodeList cached once)
+        const revealEls = document.querySelectorAll('.reveal');
         if ('IntersectionObserver' in window) {
             const io = new IntersectionObserver((entries) => {
                 entries.forEach(e => {
@@ -46,10 +50,10 @@
                     }
                 });
             }, { threshold: 0.12 });
-            document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+            revealEls.forEach(el => io.observe(el));
         } else {
             // Fallback: show everything immediately
-            document.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
+            revealEls.forEach(el => el.classList.add('visible'));
         }
     });
 })();
