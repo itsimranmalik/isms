@@ -31,13 +31,13 @@ async function renderClassList(root, sb, profile) {
         classes = (data || []).map(r => r.classes).filter(Boolean);
     }
     root.innerHTML = `
-        <p class="text-muted" style="margin-top:0">Pick a class to see Quran, Memorisation, Daily Duas and Namaz Duas reports.</p>
-        <div class="grid-app">
+        <p class="text-muted" style="margin-top:0">Pick a class to see Quran, Qaidah, Memorisation, Daily Duas and Namaz Duas reports.</p>
+        <div class="class-tile-grid">
             ${classes.map(c => `
-                <a class="card span-6" href="#/reports?class=${c.id}" style="text-decoration:none; color:inherit; display:block">
-                    <h3 style="margin:0">${c.name}</h3>
-                    <p class="text-muted" style="margin:4px 0 12px">${c.level || ''}</p>
-                    <span class="chip">${c.class_students?.[0]?.count || 0} students</span>
+                <a class="class-tile" href="#/reports?class=${c.id}">
+                    <div class="class-tile-name">${c.name}</div>
+                    <div class="class-tile-level">${c.level || ''}</div>
+                    <span class="chip">${c.class_students?.[0]?.count || 0}</span>
                 </a>
             `).join('') || '<div class="alert alert-info">No classes available.</div>'}
         </div>`;

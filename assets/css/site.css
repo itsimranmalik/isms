@@ -148,6 +148,36 @@ h3 { font-size: 18px; }
 .card.feature { transition: transform .15s, box-shadow .15s; }
 .card.feature:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
 
+/* Compact class picker tiles (Reports / Quran Grading landing pages).
+ * Auto-fits ~150px-wide tiles so 6+ classes per row on a desktop and
+ * gracefully wraps on smaller screens. */
+.class-tile-grid {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    margin-top: 6px;
+}
+.class-tile {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    text-decoration: none;
+    color: inherit;
+    display: flex; flex-direction: column; gap: 4px;
+    transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+}
+.class-tile:hover { transform: translateY(-2px); border-color: var(--green-700); box-shadow: var(--shadow); }
+.class-tile-name { font-weight: 700; color: var(--green-700); font-size: 16px; }
+.class-tile-level { color: var(--muted); font-size: 12px; min-height: 1em; }
+.class-tile .chip { align-self: flex-start; margin-top: 4px; }
+
+@media (max-width: 600px) {
+    .class-tile-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+    .class-tile { padding: 10px 12px; }
+    .class-tile-name { font-size: 15px; }
+}
+
 /* ----- footer ----- */
 .footer {
     background: var(--green-900); color: #E2E8F0; margin-top: 80px;

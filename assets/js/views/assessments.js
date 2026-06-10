@@ -61,14 +61,16 @@ async function renderClassList(root, sb, profile) {
 
     root.innerHTML = `
         <p class="text-muted" style="margin-top:0">Pick a class, then a student, to record a new Quran Recitation assessment.</p>
-        <div class="grid-app">
+        <div class="class-tile-grid">
             ${classes.map(c => `
-                <a class="card span-6" href="#/assessments?class=${c.id}" style="text-decoration:none; color:inherit; display:block">
-                    <h3 style="margin:0">${c.name}</h3>
-                    <p class="text-muted" style="margin:4px 0 12px">${c.level || ''}</p>
-                    <span class="chip">${c.class_students?.[0]?.count || 0} students</span>
-                    <span class="chip gold">${c.class_teachers?.[0]?.count || 0} teachers</span>
-                    ${assessorClassIds.has(c.id) && !isAdmin ? '<span class="chip" style="background:#FEF3C7;color:#92400E">Quran Assessor</span>' : ''}
+                <a class="class-tile" href="#/assessments?class=${c.id}">
+                    <div class="class-tile-name">${c.name}</div>
+                    <div class="class-tile-level">${c.level || ''}</div>
+                    <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:4px">
+                        <span class="chip">${c.class_students?.[0]?.count || 0}</span>
+                        <span class="chip gold">${c.class_teachers?.[0]?.count || 0}</span>
+                        ${assessorClassIds.has(c.id) && !isAdmin ? '<span class="chip" style="background:#FEF3C7;color:#92400E">Assessor</span>' : ''}
+                    </div>
                 </a>
             `).join('') || '<div class="alert alert-info">No classes available to you yet. Ask an admin to assign you to a class.</div>'}
         </div>`;
