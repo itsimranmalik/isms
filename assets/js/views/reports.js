@@ -48,7 +48,7 @@ async function renderClassReport(root, sb, profile, classId, tab) {
     const [{ data: cls }, { data: roster }, { data: settings }, { data: allDuas }] = await Promise.all([
         sb.from('classes').select('name, level').eq('id', classId).single(),
         sb.from('class_students')
-            .select('students(id, first_name, last_name, student_code, date_of_birth, guardian_name, reading_stage, qaidah_page)')
+            .select('students(id, first_name, last_name, student_code, date_of_birth, guardian_name, reading_stage, qaidah_page, quran_surah, quran_ayah)')
             .eq('class_id', classId),
         sb.from('settings').select('school_name, logo_url').eq('id', 1).maybeSingle(),
         sb.from('duas').select('id, category'),
@@ -182,11 +182,15 @@ function renderQuranTab(pane, sorted, classId, className, schoolName, logoUrl, s
         const g = latest && (Array.isArray(latest.quran_recitation_grades) ? latest.quran_recitation_grades[0] : latest.quran_recitation_grades);
         const cats = g ? [g.fluency, g.makharij, g.tajweed, g.waqf, g.accuracy] : [null, null, null, null, null];
         const total = g ? cats.reduce((s, v) => s + Number(v || 0), 0) : '';
+        const pos = (r.student.quran_surah != null && r.student.quran_ayah != null)
+            ? `${r.student.quran_surah}:${r.student.quran_ayah}`
+            : (r.student.quran_surah != null ? 'Surah ' + r.student.quran_surah : '');
         return {
             student_id: r.student.id,
             student_code: r.student.student_code,
             first_name: r.student.first_name,
             last_name: r.student.last_name,
+            position: pos,
             assessed_on: latest?.assessed_on || '',
             fluency:  g?.fluency  ?? '',
             makharij: g?.makharij ?? '',
@@ -210,7 +214,7 @@ function renderQuranTab(pane, sorted, classId, className, schoolName, logoUrl, s
             </div>
             <table class="table">
                 <thead><tr>
-                    <th>Code</th><th>Student</th><th>Last assessed</th>
+                    <th>Code</th><th>Student</th><th>Position</th><th>Last assessed</th>
                     <th>Fluency</th><th>Makharij</th><th>Tajweed</th><th>Waqf</th><th>Accuracy</th>
                     <th>Total /25</th><th>Avg</th><th>Grade</th><th>Trend</th><th>#</th><th>Report</th>
                 </tr></thead>
@@ -218,6 +222,7 @@ function renderQuranTab(pane, sorted, classId, className, schoolName, logoUrl, s
                     ${rows.map(r => `<tr>
                         <td>${r.student_code}</td>
                         <td>${r.first_name} ${r.last_name}</td>
+                        <td>${r.position || '—'}</td>
                         <td>${r.assessed_on || '—'}</td>
                         <td>${r.fluency  === '' ? '—' : r.fluency}</td>
                         <td>${r.makharij === '' ? '—' : r.makharij}</td>
@@ -230,7 +235,7 @@ function renderQuranTab(pane, sorted, classId, className, schoolName, logoUrl, s
                         <td>${r.trend}</td>
                         <td>${r.assessments_count}</td>
                         <td><button class="btn pdf-btn" data-id="${r.student_id}">PDF</button></td>
-                    </tr>`).join('') || '<tr><td colspan="14"><em>No students enrolled.</em></td></tr>'}
+                    </tr>`).join('') || '<tr><td colspan="15"><em>No students enrolled.</em></td></tr>'}
                 </tbody>
             </table>
         </div>
@@ -592,9 +597,13 @@ function buildAllStagesSections(sorted, className) {
         const g = a && (Array.isArray(a.quran_recitation_grades) ? a.quran_recitation_grades[0] : a.quran_recitation_grades);
         const cats = [g?.fluency, g?.makharij, g?.tajweed, g?.waqf, g?.accuracy];
         const total = g ? cats.reduce((s, v) => s + Number(v || 0), 0) : '';
+        const pos = (r.student.quran_surah != null && r.student.quran_ayah != null)
+            ? `${r.student.quran_surah}:${r.student.quran_ayah}`
+            : (r.student.quran_surah != null ? `Surah ${r.student.quran_surah}` : '');
         return [
             r.student.student_code,
             `${r.student.first_name} ${r.student.last_name}`,
+            pos,
             a?.assessed_on || '',
             g?.fluency  ?? '',
             g?.makharij ?? '',
@@ -664,7 +673,7 @@ function buildAllStagesSections(sorted, className) {
     const sections = [
         {
             sheetName: 'Quran',
-            headers:   ['Code', 'Student', 'Last assessed',
+            headers:   ['Code', 'Student', 'Position', 'Last assessed',
                         'Fluency', 'Makharij', 'Tajweed', 'Waqf', 'Accuracy',
                         'Total / 25', 'Average / 5', 'Grade', '# assessments'],
             rows:      quranRowsFor(r => r.student.reading_stage === 'quran'),

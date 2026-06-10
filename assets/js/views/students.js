@@ -57,6 +57,16 @@ export async function render(root, { profile, supabase }) {
                             <input type="number" min="0" max="200" name="qaidah_page" placeholder="only for Qaidah / Juz">
                         </label>
                     </div>
+                    <div class="row">
+                        <label>Quran — current surah
+                            <select name="quran_surah" id="quran-surah-edit">
+                                <option value="">— select surah —</option>
+                            </select>
+                        </label>
+                        <label>Quran — current ayah
+                            <input type="number" min="1" max="300" name="quran_ayah" placeholder="e.g. 7">
+                        </label>
+                    </div>
 
                     <fieldset id="creds-new" style="border:1px solid var(--border); border-radius:8px; padding:14px; margin-top:6px">
                         <legend style="color:var(--green-700); font-weight:600; padding:0 8px">Login credentials</legend>
@@ -102,6 +112,14 @@ export async function render(root, { profile, supabase }) {
                     <label>Qaidah page
                         <input type="number" min="0" max="200" name="qaidah_page" placeholder="only for Qaidah / Juz">
                     </label>
+                    <label>Quran — current surah
+                        <select name="quran_surah" id="quran-surah-stage">
+                            <option value="">— select surah —</option>
+                        </select>
+                    </label>
+                    <label>Quran — current ayah
+                        <input type="number" min="1" max="300" name="quran_ayah" placeholder="e.g. 7">
+                    </label>
                 </div>
                 <div id="stage-alert" style="margin-top:8px"></div>
                 <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px">
@@ -117,6 +135,19 @@ export async function render(root, { profile, supabase }) {
     const stageForm = document.getElementById('stage-form');
     const search = document.getElementById('search');
     let cache = [];
+    let surahLookup = new Map();   // number -> name_transliteration
+
+    // Populate the two Surah <select>s once (used by Edit + Stage dialogs).
+    supabase.from('surahs').select('number, name_transliteration').order('number').then(({ data }) => {
+        const opts = (data || []).map(s => {
+            surahLookup.set(Number(s.number), s.name_transliteration);
+            return `<option value="${s.number}">${s.number}. ${s.name_transliteration}</option>`;
+        }).join('');
+        const editSel  = document.getElementById('quran-surah-edit');
+        const stageSel = document.getElementById('quran-surah-stage');
+        if (editSel)  editSel.insertAdjacentHTML('beforeend', opts);
+        if (stageSel) stageSel.insertAdjacentHTML('beforeend', opts);
+    });
 
     async function load() {
         const [{ data, error }, { data: enrolments }] = await Promise.all([
@@ -296,7 +327,12 @@ export async function render(root, { profile, supabase }) {
     });
 
     function stageChip(s) {
-        if (s.reading_stage === 'quran')  return '<span class="chip gold">Quran</span>';
+        if (s.reading_stage === 'quran') {
+            const pos = (s.quran_surah != null && s.quran_ayah != null)
+                ? ` · ${s.quran_surah}:${s.quran_ayah}`
+                : (s.quran_surah != null ? ` · Surah ${s.quran_surah}` : '');
+            return '<span class="chip gold">Quran' + pos + '</span>';
+        }
         if (s.reading_stage === 'qaidah') return '<span class="chip">Qaidah' + (s.qaidah_page != null ? ' · p' + s.qaidah_page : '') + '</span>';
         if (s.reading_stage === 'juz')    return '<span class="chip">Juz Amm, 1, 2</span>';
         return '<span class="chip warn">not set</span>';
@@ -314,9 +350,11 @@ export async function render(root, { profile, supabase }) {
         document.getElementById('stage-title').textContent = `Update stage — ${s.first_name} ${s.last_name}`;
         document.getElementById('stage-subtitle').textContent =
             `Class: ${(s.class_names || []).join(', ') || '—'} · Code: ${s.student_code}`;
-        stageForm.elements['student_id'].value   = s.id;
+        stageForm.elements['student_id'].value    = s.id;
         stageForm.elements['reading_stage'].value = s.reading_stage || '';
         stageForm.elements['qaidah_page'].value   = s.qaidah_page ?? '';
+        stageForm.elements['quran_surah'].value   = s.quran_surah ?? '';
+        stageForm.elements['quran_ayah'].value    = s.quran_ayah  ?? '';
         document.getElementById('stage-alert').innerHTML = '';
         stageDlg.showModal();
     }
@@ -333,16 +371,22 @@ export async function render(root, { profile, supabase }) {
             const studentId = Number(fd.get('student_id'));
             const stageVal  = (fd.get('reading_stage') || '').toString();
             const pageRaw   = (fd.get('qaidah_page')   || '').toString();
-            const page      = pageRaw === '' ? null : Number(pageRaw);
+            const surahRaw  = (fd.get('quran_surah')   || '').toString();
+            const ayahRaw   = (fd.get('quran_ayah')    || '').toString();
+            const page      = pageRaw  === '' ? null : Number(pageRaw);
+            const surah     = surahRaw === '' ? null : Number(surahRaw);
+            const ayah      = ayahRaw  === '' ? null : Number(ayahRaw);
 
             const { error } = await supabase.rpc('set_student_reading_stage', {
-                p_student_id: studentId,
-                p_stage:      stageVal || null,
-                p_page:       page,
+                p_student_id:  studentId,
+                p_stage:       stageVal || null,
+                p_page:        page,
+                p_quran_surah: surah,
+                p_quran_ayah:  ayah,
             });
             if (error) throw error;
             await audit('student.stage_update', 'student', studentId,
-                        { reading_stage: stageVal || null, qaidah_page: page });
+                        { reading_stage: stageVal || null, qaidah_page: page, quran_surah: surah, quran_ayah: ayah });
             toast.success('Reading stage updated');
             stageDlg.close();
             load();

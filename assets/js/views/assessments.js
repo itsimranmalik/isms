@@ -86,7 +86,7 @@ async function renderStudentList(root, sb, profile, classId) {
     const isAssessor = !!profile.teacher_id && cls?.quran_assessor_id === profile.teacher_id;
 
     let query = sb.from('class_students')
-        .select('students(id, first_name, last_name, student_code, reading_stage, qaidah_page), primary_teacher_id')
+        .select('students(id, first_name, last_name, student_code, reading_stage, qaidah_page, quran_surah, quran_ayah), primary_teacher_id')
         .eq('class_id', classId);
     if (!isAdmin && !isAssessor && profile.teacher_id) {
         query = query.eq('primary_teacher_id', profile.teacher_id);
@@ -144,7 +144,7 @@ async function renderStudentList(root, sb, profile, classId) {
 /* Dispatcher: branch on the student's reading_stage. */
 async function renderForm(root, sb, profile, classId, studentId) {
     const { data: student } = await sb.from('students')
-        .select('id, first_name, last_name, student_code, reading_stage, qaidah_page')
+        .select('id, first_name, last_name, student_code, reading_stage, qaidah_page, quran_surah, quran_ayah')
         .eq('id', studentId).single();
     const { data: cls } = await sb.from('classes').select('id, name, level').eq('id', classId).single();
 
@@ -391,15 +391,28 @@ async function renderQuranForm(root, sb, profile, classId, student, cls) {
             .order('assessed_on', { ascending: false }).limit(5),
     ]);
 
+    // Preselect the student's current surah; default ayah to their current position.
+    const currentSurahId = (surahs || []).find(s => Number(s.number) === Number(student.quran_surah))?.id || '';
     const extraTopRow = `
-        <label class="field">Surah
-            <select name="surah_id">
+        <label class="field">Current surah
+            <select name="surah_id" required>
                 <option value="">—</option>
-                ${(surahs || []).map(s => `<option value="${s.id}">${s.number}. ${s.name_transliteration}</option>`).join('')}
+                ${(surahs || []).map(s => `<option value="${s.id}" ${s.id === currentSurahId ? 'selected' : ''}>${s.number}. ${s.name_transliteration}</option>`).join('')}
             </select>
         </label>
-        <label class="field">Ayah from<input type="number" min="1" name="ayah_from"></label>
-        <label class="field">Ayah to<input   type="number" min="1" name="ayah_to"></label>`;
+        <label class="field">Current ayah
+            <input type="number" min="1" max="300" name="current_ayah" required value="${student.quran_ayah ?? ''}" placeholder="e.g. 7">
+        </label>
+        <label class="field">Ayah range (optional)
+            <span style="display:flex; gap:6px">
+                <input type="number" min="1" name="ayah_from" placeholder="from" style="width:80px">
+                <input type="number" min="1" name="ayah_to"   placeholder="to"   style="width:80px">
+            </span>
+        </label>`;
+
+    const posChip = (student.quran_surah != null && student.quran_ayah != null)
+        ? `<span class="chip">at ${student.quran_surah}:${student.quran_ayah}</span>`
+        : '';
 
     root.innerHTML = `
         <p style="margin-top:0; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
@@ -408,10 +421,14 @@ async function renderQuranForm(root, sb, profile, classId, student, cls) {
             <strong>${student.first_name} ${student.last_name}</strong>
             <span class="chip">${student.student_code}</span>
             <span class="chip gold">Quran</span>
+            ${posChip}
         </p>
         <div class="grid-app">
             <div class="card span-12">
                 <h3 style="margin-top:0">New Quran Recitation assessment</h3>
+                <p class="text-muted" style="margin:0 0 12px; font-size:13px">
+                    Update <em>Current surah / ayah</em> if the student has moved on — saving also updates their record.
+                </p>
                 ${buildScoringForm({ MODULE, extraTopRow, totalMax })}
             </div>
             <div class="card span-6">
@@ -445,7 +462,23 @@ async function renderQuranForm(root, sb, profile, classId, student, cls) {
             </div>
         </div>`;
 
-    wireScoringForm(root, sb, profile, classId, student, MODULE, totalMax, 'quran_recitation.assessed');
+    wireScoringForm(root, sb, profile, classId, student, MODULE, totalMax, 'quran_recitation.assessed', {
+        onAfterSave: async (payload) => {
+            // Bump the student's current Quran position so the chip + reports reflect today's read.
+            const surahNum = (surahs || []).find(s => Number(s.id) === Number(payload.surah_id))?.number;
+            const ayahNum  = payload.current_ayah ? Number(payload.current_ayah) : null;
+            if (!surahNum && !ayahNum) return;
+            try {
+                await sb.rpc('set_student_reading_stage', {
+                    p_student_id:  student.id,
+                    p_stage:       'quran',
+                    p_page:        null,
+                    p_quran_surah: surahNum ?? null,
+                    p_quran_ayah:  ayahNum,
+                });
+            } catch (e) { /* non-fatal */ }
+        }
+    });
 }
 
 /* --------------------------------------------------------------------- */
@@ -518,7 +551,7 @@ async function renderQaidahForm(root, sb, profile, classId, student, cls) {
 
 /* --------------------------------------------------------------------- */
 /* Shared form behaviour: 0-5 button group clicks, live total/avg, submit. */
-function wireScoringForm(root, sb, profile, classId, student, MODULE, totalMax, auditAction) {
+function wireScoringForm(root, sb, profile, classId, student, MODULE, totalMax, auditAction, opts = {}) {
     const form    = document.getElementById('assess-form');
     const summary = document.getElementById('live-summary');
 
@@ -583,6 +616,9 @@ function wireScoringForm(root, sb, profile, classId, student, MODULE, totalMax, 
 
             const id = await MODULE.recordAssessment(sb, payload);
             await audit(auditAction, 'assessment', id);
+            if (typeof opts.onAfterSave === 'function') {
+                try { await opts.onAfterSave(payload, id); } catch { /* non-fatal */ }
+            }
 
             const scores = currentScores();
             const avg  = MODULE.calculateAverage(scores);
@@ -608,7 +644,12 @@ function wireScoringForm(root, sb, profile, classId, student, MODULE, totalMax, 
 
 /* --------------------------------------------------------------------- */
 function stageChipFor(s) {
-    if (s.reading_stage === 'quran')  return '<span class="chip gold">Quran</span>';
+    if (s.reading_stage === 'quran') {
+        const pos = (s.quran_surah != null && s.quran_ayah != null)
+            ? ` · ${s.quran_surah}:${s.quran_ayah}`
+            : (s.quran_surah != null ? ` · Surah ${s.quran_surah}` : '');
+        return '<span class="chip gold">Quran' + pos + '</span>';
+    }
     if (s.reading_stage === 'qaidah') return '<span class="chip">Qaidah' + (s.qaidah_page != null ? ' · p' + s.qaidah_page : '') + '</span>';
     if (s.reading_stage === 'juz')    return '<span class="chip">Juz Amm, 1, 2</span>';
     return '<span class="chip warn">stage not set</span>';
