@@ -129,7 +129,17 @@ export async function render(root, { profile, supabase }) {
             const surahId = Number(tr.dataset.surah);
             const memScore = parseScore(tr.querySelector('[data-f=memorisation_score]').value);
             const tajScore = parseScore(tr.querySelector('[data-f=quality_score]').value);
-            const status   = tr.querySelector('[data-f=status]').value;
+            let   status   = tr.querySelector('[data-f=status]').value;
+
+            // Guard: real score entered but status left as default NA → flip to Completed.
+            let autoFlipped = false;
+            const hasRealScore = (memScore != null && memScore >= 1) || (tajScore != null && tajScore >= 1);
+            if (status === 'not_applicable' && hasRealScore) {
+                status = 'completed';
+                tr.querySelector('[data-f=status]').value = 'completed';
+                autoFlipped = true;
+            }
+
             const row = {
                 student_id:         studentId,
                 surah_id:           surahId,
@@ -143,7 +153,9 @@ export async function render(root, { profile, supabase }) {
                 .upsert(row, { onConflict: 'student_id,surah_id' });
             if (error) { toast.error(error.message); return; }
             await audit('memorisation.update', 'memorisation_progress', null, row);
-            toast.success('Memorisation saved');
+            toast.success(autoFlipped
+                ? 'Memorisation saved — status set to Completed (you entered a score)'
+                : 'Memorisation saved');
             load(studentId);
         }));
 

@@ -148,7 +148,19 @@ export async function render(root, { profile, supabase }) {
             const tr = ev.target.closest('tr');
             const memScore = parseScore(tr.querySelector('[data-f=memorisation_score]').value);
             const tajScore = parseScore(tr.querySelector('[data-f=tajweed_score]').value);
-            const status   = tr.querySelector('[data-f=status]').value;
+            let   status   = tr.querySelector('[data-f=status]').value;
+
+            // Guard: if a real score was entered but status was left as the
+            // default "Not Applicable", flip it to "Completed" so the work
+            // actually counts in reports. Tell the teacher what we did.
+            let autoFlipped = false;
+            const hasRealScore = (memScore != null && memScore >= 1) || (tajScore != null && tajScore >= 1);
+            if (status === 'not_applicable' && hasRealScore) {
+                status = 'completed';
+                tr.querySelector('[data-f=status]').value = 'completed';
+                autoFlipped = true;
+            }
+
             const row = {
                 student_id:         studentId,
                 dua_id:             Number(tr.dataset.dua),
@@ -162,7 +174,9 @@ export async function render(root, { profile, supabase }) {
                 .upsert(row, { onConflict: 'student_id,dua_id' });
             if (error) { toast.error(error.message); return; }
             await audit('duas.update', 'dua_progress', null, row);
-            toast.success('Dua saved');
+            toast.success(autoFlipped
+                ? 'Dua saved — status set to Completed (you entered a score)'
+                : 'Dua saved');
             load();
         }));
 
