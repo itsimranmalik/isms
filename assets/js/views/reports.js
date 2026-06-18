@@ -67,10 +67,18 @@ async function renderClassReport(root, sb, profile, classId, tab) {
                 .select('student_id, overall_score, overall_grade, assessed_on, qaidah_grades(total_score, page_at_assessment, letter_recognition, joining_reading, makharij_tajweed, fluency_confidence)')
                 .in('student_id', ids).eq('module_type', 'qaidah_reading')
                 .order('assessed_on', { ascending: false }),
+            // CRITICAL: scope both queries to this class's students. Without
+            // .in('student_id', ids) Supabase's default 1000-row cap silently
+            // truncated the result once a class hit ~388 students × 56 duas, so
+            // newer classes saw 0/0 in every row. Limit 50k as a belt-and-braces.
             sb.from('memorisation_progress')
-                .select('student_id, status, memorisation_score, quality_score'),
+                .select('student_id, status, memorisation_score, quality_score')
+                .in('student_id', ids)
+                .limit(50000),
             sb.from('dua_progress')
-                .select('student_id, dua_id, status, memorisation_score, tajweed_score, score'),
+                .select('student_id, dua_id, status, memorisation_score, tajweed_score, score')
+                .in('student_id', ids)
+                .limit(50000),
         ])
         : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }];
 
