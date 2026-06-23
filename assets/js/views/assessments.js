@@ -637,6 +637,13 @@ function wireScoringForm(root, sb, profile, classId, student, MODULE, totalMax, 
             form.querySelectorAll('.grade-btn').forEach(b => b.setAttribute('aria-pressed', 'false'));
             form.elements['assessed_on'].value = new Date().toISOString().slice(0, 10);
             refreshSummary();
+            // Re-render the route so "Recent assessments" + position chip refresh from DB.
+            // 250ms gives the success toast time to render before the page swaps.
+            setTimeout(() => {
+                const h = location.hash;
+                location.hash = '';
+                location.hash = h;
+            }, 1200);
         } catch (err) {
             alertBox.innerHTML = `<div class="alert alert-danger">${err.message || 'Save failed.'}</div>`;
             toast.error(err.message || 'Save failed');
