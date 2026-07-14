@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Parents' Feedback — Madrasa</title>
+    <meta name="description" content="Parents' Evening feedback form. Completely anonymous — your honest feedback helps us improve the madrasa for every family.">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='50' font-size='52'>☪</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Playfair+Display:wght@700&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/site.css">
+    <style>
+        .fb-section { margin-top: 32px; }
+        .fb-section h2 {
+            font-size: 20px; margin: 0 0 4px; color: var(--green-800);
+            display: flex; align-items: center; gap: 12px;
+        }
+        .fb-section h2 .num {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 30px; height: 30px; border-radius: 999px;
+            background: var(--green-50); color: var(--green-700);
+            font-weight: 700; font-size: 14px;
+            font-family: 'Poppins', sans-serif;
+        }
+        .fb-section > .text-muted { margin: 0 0 18px 42px; font-size: 13px; }
+
+        .fb-question {
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .fb-question:last-child { border-bottom: none; }
+        .fb-question > label {
+            display: block; font-weight: 500; color: var(--text);
+            margin-bottom: 10px; font-size: 15px;
+        }
+        .fb-question > label .qnum {
+            color: var(--muted); font-weight: 600; margin-right: 6px;
+        }
+
+        /* Radio pill row for satisfaction / multi-choice */
+        .pills {
+            display: flex; flex-wrap: wrap; gap: 8px;
+        }
+        .pill-radio {
+            position: relative; cursor: pointer;
+            padding: 8px 14px; border-radius: 999px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            font-size: 13px; font-weight: 500;
+            color: var(--text);
+            transition: background .15s, border-color .15s, color .15s;
+        }
+        .pill-radio input {
+            position: absolute; opacity: 0; pointer-events: none;
+        }
+        .pill-radio:hover { border-color: var(--green-500); }
+        .pill-radio.selected {
+            background: var(--green-700); color: #fff; border-color: var(--green-700);
+        }
+
+        .satisfaction-legend {
+            display: flex; gap: 6px; align-items: center;
+            margin-bottom: 6px; font-size: 12px; color: var(--muted);
+        }
+        .satisfaction-legend .dot {
+            width: 8px; height: 8px; border-radius: 50%;
+        }
+
+        textarea.fb-textarea {
+            width: 100%; padding: 12px 14px; border: 1px solid var(--border);
+            border-radius: 8px; font: inherit; font-size: 14px;
+            resize: vertical; min-height: 90px;
+            transition: border-color .15s, box-shadow .15s;
+        }
+        textarea.fb-textarea:focus {
+            outline: none; border-color: var(--green-700);
+            box-shadow: 0 0 0 3px rgba(5,102,86,.10);
+        }
+
+        .fb-class-input {
+            width: 100%; max-width: 320px;
+            padding: 10px 14px; border: 1px solid var(--border);
+            border-radius: 8px; font: inherit; font-size: 14px;
+        }
+        .fb-class-input:focus {
+            outline: none; border-color: var(--green-700);
+            box-shadow: 0 0 0 3px rgba(5,102,86,.10);
+        }
+
+        .fb-submit-row {
+            margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            flex-wrap: wrap;
+        }
+        .fb-thanks {
+            margin-top: 32px; padding: 28px; text-align: center;
+            border: 1px solid var(--green-100, #C8E6DE); border-radius: 12px;
+            background: var(--green-50);
+        }
+        .fb-thanks h2 { color: var(--green-800); margin: 0 0 8px; }
+
+        /* Honeypot — hidden from users, visible to naive bots */
+        .honeypot {
+            position: absolute; left: -9999px; width: 1px; height: 1px;
+            opacity: 0; pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="site-nav"></div>
+
+    <section class="page-hero">
+        <div class="container">
+            <span class="chip gold">Parents' Evening</span>
+            <h1>Feedback Form</h1>
+            <p class="lead">
+                Completely anonymous — please do not write your name or your child's name anywhere.
+                Your honest feedback helps us improve the madrasa for every family.
+            </p>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container" style="max-width: 780px">
+            <form id="feedback-form" class="card" style="padding: 32px" novalidate>
+                <!-- Honeypot -->
+                <div class="honeypot">
+                    <label>Do not fill in this field<input type="text" name="website" tabindex="-1" autocomplete="off"></label>
+                </div>
+
+                <!-- Class -->
+                <div class="fb-question" style="border-bottom:none; padding-top:0">
+                    <label>Class / Classes <span style="color:var(--muted); font-weight:400">(optional)</span></label>
+                    <input type="text" name="class_names" class="fb-class-input" placeholder="e.g. B4, G2">
+                </div>
+
+                <!-- Section 1 -->
+                <div class="fb-section">
+                    <h2><span class="num">1</span> Your Overall Experience</h2>
+                    <p class="text-muted">How satisfied are you with the following?</p>
+
+                    <div class="fb-question">
+                        <label><span class="qnum">1.</span> Overall, how satisfied are you with the madrasa?</label>
+                        <div class="pills" data-name="q1"></div>
+                    </div>
+                    <div class="fb-question">
+                        <label><span class="qnum">2.</span> Quality of teaching your child receives</label>
+                        <div class="pills" data-name="q2"></div>
+                    </div>
+                    <div class="fb-question">
+                        <label><span class="qnum">3.</span> Communication from the madrasa (updates, homework, notices)</label>
+                        <div class="pills" data-name="q3"></div>
+                    </div>
+                    <div class="fb-question">
+                        <label><span class="qnum">4.</span> Learning environment and facilities</label>
+                        <div class="pills" data-name="q4"></div>
+                    </div>
+                    <div class="fb-question">
+                        <label><span class="qnum">5.</span> Safety and wellbeing of your child while at the madrasa</label>
+                        <div class="pills" data-name="q5"></div>
+                    </div>
+                    <div class="fb-question">
+                        <label><span class="qnum">6.</span> Approachability of teachers and staff</label>
+                        <div class="pills" data-name="q6"></div>
+                    </div>
+                </div>
+
+                <!-- Section 2 -->
+                <div class="fb-section">
+                    <h2><span class="num">2</span> End of Year Assessment</h2>
+
+                    <div class="fb-question">
+                        <label><span class="qnum">8.</span> How clearly your child's end of year assessment result was explained</label>
+                        <div class="pills" data-name="q8"></div>
+                    </div>
+                    <div class="fb-question">
+                        <label><span class="qnum">9.</span> How well you understand your child's overall progress this year</label>
+                        <div class="pills" data-name="q9"></div>
+                    </div>
+                    <div class="fb-question">
+                        <label><span class="qnum">10.</span> Is the current pace of teaching suitable for your child?</label>
+                        <div class="pills" data-name="q10">
+                            <label class="pill-radio"><input type="radio" name="q10" value="too_slow">Too Slow</label>
+                            <label class="pill-radio"><input type="radio" name="q10" value="just_right">Just Right</label>
+                            <label class="pill-radio"><input type="radio" name="q10" value="too_fast">Too Fast</label>
+                        </div>
+                    </div>
+                    <div class="fb-question">
+                        <label><span class="qnum">11.</span> Are there any areas where you feel your child needs more support?</label>
+                        <textarea class="fb-textarea" name="q11" placeholder="Optional — write as much or as little as you'd like."></textarea>
+                    </div>
+                </div>
+
+                <!-- Section 3 -->
+                <div class="fb-section">
+                    <h2><span class="num">3</span> Urdu Language</h2>
+
+                    <div class="fb-question">
+                        <label><span class="qnum">12.</span> Does your child currently show an interest in learning Urdu as a language (separate from Qur'anic Arabic)?</label>
+                        <div class="pills" data-name="q12">
+                            <label class="pill-radio"><input type="radio" name="q12" value="yes">Yes</label>
+                            <label class="pill-radio"><input type="radio" name="q12" value="no">No</label>
+                            <label class="pill-radio"><input type="radio" name="q12" value="not_sure">Not Sure</label>
+                        </div>
+                    </div>
+                    <div class="fb-question">
+                        <label><span class="qnum">13.</span> Would you be interested in your child attending Urdu language classes held outside current madrasa hours?</label>
+                        <div class="pills" data-name="q13">
+                            <label class="pill-radio"><input type="radio" name="q13" value="yes">Yes</label>
+                            <label class="pill-radio"><input type="radio" name="q13" value="no">No</label>
+                            <label class="pill-radio"><input type="radio" name="q13" value="maybe">Maybe</label>
+                        </div>
+                    </div>
+                    <div class="fb-question">
+                        <label><span class="qnum">14.</span> Would you be happy to pay an additional fee for these Urdu language classes?</label>
+                        <div class="pills" data-name="q14">
+                            <label class="pill-radio"><input type="radio" name="q14" value="yes">Yes</label>
+                            <label class="pill-radio"><input type="radio" name="q14" value="no">No</label>
+                            <label class="pill-radio"><input type="radio" name="q14" value="depends">Depends on the fee</label>
+                        </div>
+                    </div>
+                    <div class="fb-question">
+                        <label><span class="qnum">16.</span> If yes, what days/times would generally suit your family best?</label>
+                        <div class="pills" data-name="q16">
+                            <label class="pill-radio"><input type="radio" name="q16" value="weekday_evening">Weekday evening (after madrasa)</label>
+                            <label class="pill-radio"><input type="radio" name="q16" value="weekend">Weekend</label>
+                            <label class="pill-radio"><input type="radio" name="q16" value="either">Either</label>
+                            <label class="pill-radio"><input type="radio" name="q16" value="not_sure">Not sure</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 4 -->
+                <div class="fb-section">
+                    <h2><span class="num">4</span> General Feedback</h2>
+
+                    <div class="fb-question">
+                        <label><span class="qnum">17.</span> What do you feel the madrasa does well?</label>
+                        <textarea class="fb-textarea" name="q17" placeholder="Anything that stands out to you."></textarea>
+                    </div>
+                    <div class="fb-question">
+                        <label><span class="qnum">18.</span> What could we improve?</label>
+                        <textarea class="fb-textarea" name="q18" placeholder="Honest suggestions welcome — we take them seriously."></textarea>
+                    </div>
+                    <div class="fb-question">
+                        <label><span class="qnum">19.</span> Any other comments or suggestions?</label>
+                        <textarea class="fb-textarea" name="q19"></textarea>
+                    </div>
+                </div>
+
+                <div id="fb-alert"></div>
+                <div class="fb-submit-row">
+                    <p class="text-muted" style="margin:0; font-size:13px">
+                        JazakAllahu Khairan for your time and valuable feedback.
+                    </p>
+                    <button type="submit" class="btn btn-primary btn-lg" id="fb-submit">Submit feedback</button>
+                </div>
+            </form>
+
+            <div id="fb-thanks" class="fb-thanks" style="display:none">
+                <div style="font-size:36px; color: var(--gold-500); margin-bottom:6px">☪</div>
+                <h2>JazakAllahu Khairan</h2>
+                <p class="text-muted" style="margin:0">
+                    Your feedback has been received. It will be shared with the leadership team — completely anonymously — as we plan next year's improvements.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <div id="site-footer"></div>
+
+    <script src="assets/js/partials.js"></script>
+    <script src="assets/js/site.js"></script>
+    <script src="assets/js/config.js"></script>
+    <script type="module">
+        import { supabase } from './assets/js/supabase-client.js';
+        import { toast }    from './assets/js/modules/toast.js';
+
+        // Build the 1-5 satisfaction pills for every .pills[data-name="qN"] that isn't hard-coded above
+        const SAT_LABELS = [
+            [5, 'Very Satisfied'],
+            [4, 'Satisfied'],
+            [3, 'Neutral'],
+            [2, 'Dissatisfied'],
+            [1, 'Very Dissatisfied'],
+        ];
+        const satNames = ['q1','q2','q3','q4','q5','q6','q8','q9'];
+        for (const n of satNames) {
+            const el = document.querySelector('.pills[data-name="'+n+'"]');
+            if (!el) continue;
+            el.innerHTML = SAT_LABELS.map(([v, lbl]) =>
+                `<label class="pill-radio"><input type="radio" name="${n}" value="${v}">${lbl}</label>`
+            ).join('');
+        }
+
+        // Selected-state class toggling for all pill radios
+        document.querySelectorAll('.pills').forEach(group => {
+            group.addEventListener('change', () => {
+                group.querySelectorAll('.pill-radio').forEach(p => {
+                    const input = p.querySelector('input');
+                    p.classList.toggle('selected', !!input?.checked);
+                });
+            });
+        });
+
+        // Submit
+        const form   = document.getElementById('feedback-form');
+        const submit = document.getElementById('fb-submit');
+        const alertEl = document.getElementById('fb-alert');
+        const thanks = document.getElementById('fb-thanks');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            alertEl.innerHTML = '';
+
+            const fd = new FormData(form);
+
+            // Honeypot: if a bot filled the hidden field, silently drop.
+            if ((fd.get('website') || '').toString().trim() !== '') {
+                thanks.style.display = '';
+                form.style.display = 'none';
+                return;
+            }
+
+            submit.disabled = true;
+            submit.textContent = 'Submitting…';
+
+            const asInt = (k) => {
+                const v = fd.get(k);
+                return v == null || v === '' ? null : Number(v);
+            };
+            const asText = (k) => {
+                const v = fd.get(k);
+                return v == null ? null : (String(v).trim() || null);
+            };
+
+            const row = {
+                class_names:                 asText('class_names'),
+                q1_overall_satisfaction:     asInt('q1'),
+                q2_teaching_quality:         asInt('q2'),
+                q3_communication:            asInt('q3'),
+                q4_learning_environment:     asInt('q4'),
+                q5_safety_wellbeing:         asInt('q5'),
+                q6_approachability:          asInt('q6'),
+                q8_assessment_explanation:   asInt('q8'),
+                q9_progress_understanding:   asInt('q9'),
+                q10_teaching_pace:           asText('q10'),
+                q11_support_needed:          asText('q11'),
+                q12_urdu_interest:           asText('q12'),
+                q13_urdu_classes_interest:   asText('q13'),
+                q14_urdu_fee_willingness:    asText('q14'),
+                q16_urdu_preferred_time:     asText('q16'),
+                q17_does_well:               asText('q17'),
+                q18_could_improve:           asText('q18'),
+                q19_other_comments:          asText('q19'),
+                user_agent:                  navigator.userAgent.slice(0, 500),
+            };
+
+            const { error } = await supabase.from('parent_feedback').insert(row);
+            if (error) {
+                alertEl.innerHTML = '<div class="alert alert-danger">Could not submit: '
+                    + (error.message || 'unknown error') + '. Please try again or refresh the page.</div>';
+                toast.error('Could not submit — please try again');
+                submit.disabled = false;
+                submit.textContent = 'Submit feedback';
+                return;
+            }
+
+            form.style.display = 'none';
+            thanks.style.display = '';
+            window.scrollTo({ top: thanks.offsetTop - 40, behavior: 'smooth' });
+        });
+    </script>
+</body>
+</html>

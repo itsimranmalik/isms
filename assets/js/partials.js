@@ -13,6 +13,7 @@
                     <a href="index.html">Home</a>
                     <a href="about.html">About</a>
                     <a href="admissions.html">Admissions</a>
+                    <a href="feedback.html">Feedback</a>
                     <a href="contact.html">Contact</a>
                     <button class="nav-theme-btn" aria-label="Toggle dark mode" title="Toggle dark mode">🌓</button>
                     <a href="login.html" class="btn btn-primary">Sign in</a>
@@ -31,7 +32,7 @@
                     </div>
                     <div>
                         <h4>Site</h4>
-                        <p><a href="index.html">Home</a><br><a href="about.html">About</a><br><a href="admissions.html">Admissions</a><br><a href="contact.html">Contact</a></p>
+                        <p><a href="index.html">Home</a><br><a href="about.html">About</a><br><a href="admissions.html">Admissions</a><br><a href="feedback.html">Feedback</a><br><a href="contact.html">Contact</a></p>
                     </div>
                     <div>
                         <h4>Portal</h4>

@@ -23,6 +23,7 @@ const NAV_BY_ROLE = {
         { grp: 'Admin' },
         { hash: 'reports',          label: 'Reports',          icon: '📄' },
         { hash: 'admissions',       label: 'Admissions',       icon: '📝' },
+        { hash: 'feedback',         label: 'Parent Feedback',  icon: '💬' },
         { hash: 'regrade-requests', label: 'Regrade Requests', icon: '🔁' },
         { hash: 'admins',           label: 'Admins',           icon: '🛡️' },
         { hash: 'audit',            label: 'Audit log',        icon: '📜' },
