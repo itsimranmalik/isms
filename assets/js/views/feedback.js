@@ -52,7 +52,13 @@ export async function render(root, { profile, supabase }) {
             All entries are anonymous — no parent or child names are stored.
         </p>
 
-        <div class="grid-app" id="fb-summary" style="margin-bottom:16px"></div>
+        <div id="fb-summary" style="margin-bottom:16px"></div>
+        <style>
+            @media (max-width: 900px) {
+                #fb-summary > div:first-child { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+                #fb-summary > div:last-child  { grid-template-columns: 1fr !important; }
+            }
+        </style>
 
         <div class="toolbar" style="flex-wrap:wrap; margin-bottom:12px">
             <label class="field">Class contains
@@ -143,41 +149,41 @@ export async function render(root, { profile, supabase }) {
         const paceMix = tally(rows, 'q10_teaching_pace');
         const urduInterest = tally(rows, 'q12_urdu_interest');
 
+        const kpiCard = (label, big, small) => `
+            <div class="card" style="padding:16px 18px; display:flex; flex-direction:column; justify-content:space-between; min-height:112px">
+                <div class="text-muted" style="font-size:11px; text-transform:uppercase; letter-spacing:.08em; font-weight:600">${label}</div>
+                <div>
+                    <div style="font-size:26px; font-weight:700; color:var(--green-800); line-height:1.1">${big}</div>
+                    ${small ? `<div class="text-muted" style="font-size:12px; margin-top:4px">${small}</div>` : ''}
+                </div>
+            </div>`;
+
         sumCol.innerHTML = `
-            <div class="card span-3">
-                <div class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:.06em; font-weight:600">Submissions</div>
-                <div style="font-size:28px; font-weight:700; color:var(--green-800); margin-top:4px">${rows.length}</div>
+            <div style="display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:12px; margin-bottom:12px">
+                ${kpiCard('Submissions',       rows.length,                                                        '')}
+                ${kpiCard('Overall avg (1-5)', overallSat != null ? overallSat.toFixed(2) : '—',                   '')}
+                ${kpiCard('Pace: just right',  `${paceMix.just_right || 0} / ${rows.length}`,                     `Slow ${paceMix.too_slow || 0} · Fast ${paceMix.too_fast || 0}`)}
+                ${kpiCard('Urdu interest',     `${urduInterest.yes || 0} yes`,                                    `Not sure ${urduInterest.not_sure || 0} · No ${urduInterest.no || 0}`)}
             </div>
-            <div class="card span-3">
-                <div class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:.06em; font-weight:600">Overall avg (1-5)</div>
-                <div style="font-size:28px; font-weight:700; color:var(--green-800); margin-top:4px">${overallSat != null ? overallSat.toFixed(2) : '—'}</div>
-            </div>
-            <div class="card span-3">
-                <div class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:.06em; font-weight:600">Pace: just right</div>
-                <div style="font-size:20px; font-weight:700; color:var(--green-800); margin-top:4px">${paceMix.just_right || 0} / ${rows.length}</div>
-                <div class="text-muted" style="font-size:12px; margin-top:2px">Slow: ${paceMix.too_slow || 0} · Fast: ${paceMix.too_fast || 0}</div>
-            </div>
-            <div class="card span-3">
-                <div class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:.06em; font-weight:600">Urdu interest</div>
-                <div style="font-size:20px; font-weight:700; color:var(--green-800); margin-top:4px">${urduInterest.yes || 0} yes</div>
-                <div class="text-muted" style="font-size:12px; margin-top:2px">Not sure: ${urduInterest.not_sure || 0} · No: ${urduInterest.no || 0}</div>
-            </div>
-            <div class="card span-6">
-                <div class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:.06em; font-weight:600">Children represented</div>
-                <div style="display:flex; gap:24px; align-items:baseline; margin-top:4px; flex-wrap:wrap">
-                    <div>
-                        <div style="font-size:28px; font-weight:700; color:var(--green-800)">${totalChildren(rows)}</div>
-                        <div class="text-muted" style="font-size:12px">Total children across all submissions</div>
-                    </div>
-                    <div style="flex:1; min-width:200px">
-                        <div class="text-muted" style="font-size:12px; font-weight:600; margin-bottom:4px">Family size</div>
-                        <div style="font-size:13px; color:var(--text)">${familyMix(rows)}</div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px">
+                <div class="card" style="padding:16px 18px; min-height:112px">
+                    <div class="text-muted" style="font-size:11px; text-transform:uppercase; letter-spacing:.08em; font-weight:600; margin-bottom:8px">Children represented</div>
+                    <div style="display:flex; gap:20px; align-items:flex-start; flex-wrap:wrap">
+                        <div style="min-width:110px">
+                            <div style="font-size:26px; font-weight:700; color:var(--green-800); line-height:1.1">${totalChildren(rows)}</div>
+                            <div class="text-muted" style="font-size:12px; margin-top:4px">Total across submissions</div>
+                        </div>
+                        <div style="flex:1; min-width:180px">
+                            <div class="text-muted" style="font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px">Family size</div>
+                            <div style="font-size:13px; color:var(--text); line-height:1.6">${familyMix(rows)}</div>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="card span-6">
-                <div class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:.06em; font-weight:600">Classes mentioned</div>
-                <div style="font-size:13px; color:var(--text); margin-top:6px; line-height:1.7">${classMix(rows)}</div>
+                <div class="card" style="padding:16px 18px; min-height:112px">
+                    <div class="text-muted" style="font-size:11px; text-transform:uppercase; letter-spacing:.08em; font-weight:600; margin-bottom:8px">Classes mentioned</div>
+                    <div style="font-size:13px; color:var(--text); line-height:1.9">${classMix(rows)}</div>
+                </div>
             </div>`;
     }
 
