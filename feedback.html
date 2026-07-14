@@ -105,6 +105,39 @@
             position: absolute; left: -9999px; width: 1px; height: 1px;
             opacity: 0; pointer-events: none;
         }
+
+        /* Prominent anonymity notice */
+        .fb-privacy-notice {
+            display: flex; align-items: flex-start; gap: 14px;
+            padding: 16px 20px; margin-bottom: 22px;
+            background: linear-gradient(135deg, rgba(212,175,55,.10), rgba(5,102,86,.06));
+            border: 1px solid rgba(212,175,55,.35);
+            border-left: 4px solid var(--gold-500);
+            border-radius: 10px;
+            font-size: 14px; line-height: 1.6; color: var(--text);
+        }
+        .fb-privacy-icon {
+            font-size: 22px; flex-shrink: 0; line-height: 1;
+        }
+        .fb-privacy-body strong { color: var(--green-800); }
+
+        /* Child-class input row */
+        .child-class-row {
+            display: flex; align-items: center; gap: 10px;
+        }
+        .child-class-row .child-label {
+            color: var(--muted); font-size: 13px; font-weight: 600;
+            min-width: 68px;
+        }
+        .child-class-row input {
+            flex: 1;
+            padding: 9px 12px; border: 1px solid var(--border);
+            border-radius: 8px; font: inherit; font-size: 14px;
+        }
+        .child-class-row input:focus {
+            outline: none; border-color: var(--green-700);
+            box-shadow: 0 0 0 3px rgba(5,102,86,.10);
+        }
     </style>
 </head>
 <body>
@@ -115,7 +148,6 @@
             <span class="chip gold">Parents' Evening</span>
             <h1>Feedback Form</h1>
             <p class="lead">
-                Completely anonymous — please do not write your name or your child's name anywhere.
                 Your honest feedback helps us improve the madrasa for every family.
             </p>
         </div>
@@ -123,16 +155,48 @@
 
     <section class="section">
         <div class="container" style="max-width: 780px">
+
+            <!-- Strong anonymity notice -->
+            <div class="fb-privacy-notice">
+                <div class="fb-privacy-icon">🔒</div>
+                <div class="fb-privacy-body">
+                    <strong>Completely anonymous.</strong>
+                    Your responses are <strong>not</strong> linked to your name, your child's name,
+                    your phone or your email. Nothing you write here can be traced back to your family.
+                    This feedback is used <em>only</em> to improve the services we provide — nothing more.
+                </div>
+            </div>
+
             <form id="feedback-form" class="card" style="padding: 32px" novalidate>
                 <!-- Honeypot -->
                 <div class="honeypot">
                     <label>Do not fill in this field<input type="text" name="website" tabindex="-1" autocomplete="off"></label>
                 </div>
 
-                <!-- Class -->
-                <div class="fb-question" style="border-bottom:none; padding-top:0">
-                    <label>Class / Classes <span style="color:var(--muted); font-weight:400">(optional)</span></label>
-                    <input type="text" name="class_names" class="fb-class-input" placeholder="e.g. B4, G2">
+                <!-- Section 0: About your family (optional) -->
+                <div class="fb-section" style="margin-top:0">
+                    <h2><span class="num">0</span> About your family <span style="color:var(--muted); font-weight:400; font-size:14px">(optional)</span></h2>
+                    <p class="text-muted">Helps us break results down by class — nothing identifies you.</p>
+
+                    <div class="fb-question">
+                        <label>How many children do you have studying at the madrasa?</label>
+                        <div class="pills" data-name="children_count" id="children-count-pills">
+                            <label class="pill-radio"><input type="radio" name="children_count" value="1">1</label>
+                            <label class="pill-radio"><input type="radio" name="children_count" value="2">2</label>
+                            <label class="pill-radio"><input type="radio" name="children_count" value="3">3</label>
+                            <label class="pill-radio"><input type="radio" name="children_count" value="4">4</label>
+                            <label class="pill-radio"><input type="radio" name="children_count" value="5">5</label>
+                            <label class="pill-radio"><input type="radio" name="children_count" value="6">6+</label>
+                        </div>
+                    </div>
+
+                    <div class="fb-question" id="child-classes-question" style="display:none">
+                        <label>Which class is each child in?</label>
+                        <div id="child-classes-inputs" style="display:flex; flex-direction:column; gap:8px; max-width:420px"></div>
+                        <div class="text-muted" style="font-size:12px; margin-top:8px">
+                            Examples: B4, G2, Hifz - 1, Transition - GS.
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Section 1 -->
@@ -304,6 +368,34 @@
             });
         });
 
+        // Family section — reveal child-class inputs when a count is picked
+        const childCountGroup    = document.getElementById('children-count-pills');
+        const childClassesBox    = document.getElementById('child-classes-question');
+        const childClassesInputs = document.getElementById('child-classes-inputs');
+        childCountGroup.addEventListener('change', () => {
+            const selected = childCountGroup.querySelector('input[name="children_count"]:checked');
+            const n = selected ? Number(selected.value) : 0;
+            if (n <= 0) {
+                childClassesBox.style.display = 'none';
+                childClassesInputs.innerHTML = '';
+                return;
+            }
+            // Preserve any typed values across re-renders
+            const existing = Array.from(childClassesInputs.querySelectorAll('input')).map(i => i.value);
+            const rows = [];
+            for (let i = 0; i < n; i++) {
+                const val = (existing[i] || '').replace(/"/g, '&quot;');
+                rows.push(
+                    '<div class="child-class-row">' +
+                    '  <span class="child-label">Child ' + (i+1) + '</span>' +
+                    '  <input type="text" name="child_class_' + (i+1) + '" value="' + val + '" placeholder="e.g. B4">' +
+                    '</div>'
+                );
+            }
+            childClassesInputs.innerHTML = rows.join('');
+            childClassesBox.style.display = '';
+        });
+
         // Submit
         const form   = document.getElementById('feedback-form');
         const submit = document.getElementById('fb-submit');
@@ -335,8 +427,16 @@
                 return v == null ? null : (String(v).trim() || null);
             };
 
+            // Roll individual child-class inputs into a single class_names string
+            const childClassInputs = form.querySelectorAll('input[name^="child_class_"]');
+            const childClasses = Array.from(childClassInputs)
+                .map(el => (el.value || '').trim())
+                .filter(Boolean);
+            const rolledClassNames = childClasses.join(', ') || null;
+
             const row = {
-                class_names:                 asText('class_names'),
+                children_count:              asInt('children_count'),
+                class_names:                 rolledClassNames,
                 q1_overall_satisfaction:     asInt('q1'),
                 q2_teaching_quality:         asInt('q2'),
                 q3_communication:            asInt('q3'),

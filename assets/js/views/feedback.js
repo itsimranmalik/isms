@@ -14,7 +14,9 @@ const YNM_LABEL = {
 
 // Human labels and DB column names for every question, in display order.
 const QUESTIONS = [
-    // section, question label, db column, kind (sat|pace|ynm|text)
+    // section, question label, db column, kind (sat|pace|ynm|text|int)
+    ['About Family',             'Children at the madrasa',                    'children_count',            'int'],
+    ['About Family',             'Class(es)',                                  'class_names',               'text'],
     ['Overall Experience',       'Q1 · Overall satisfaction',                  'q1_overall_satisfaction',   'sat'],
     ['Overall Experience',       'Q2 · Quality of teaching',                   'q2_teaching_quality',       'sat'],
     ['Overall Experience',       'Q3 · Communication',                         'q3_communication',          'sat'],
@@ -159,6 +161,23 @@ export async function render(root, { profile, supabase }) {
                 <div class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:.06em; font-weight:600">Urdu interest</div>
                 <div style="font-size:20px; font-weight:700; color:var(--green-800); margin-top:4px">${urduInterest.yes || 0} yes</div>
                 <div class="text-muted" style="font-size:12px; margin-top:2px">Not sure: ${urduInterest.not_sure || 0} · No: ${urduInterest.no || 0}</div>
+            </div>
+            <div class="card span-6">
+                <div class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:.06em; font-weight:600">Children represented</div>
+                <div style="display:flex; gap:24px; align-items:baseline; margin-top:4px; flex-wrap:wrap">
+                    <div>
+                        <div style="font-size:28px; font-weight:700; color:var(--green-800)">${totalChildren(rows)}</div>
+                        <div class="text-muted" style="font-size:12px">Total children across all submissions</div>
+                    </div>
+                    <div style="flex:1; min-width:200px">
+                        <div class="text-muted" style="font-size:12px; font-weight:600; margin-bottom:4px">Family size</div>
+                        <div style="font-size:13px; color:var(--text)">${familyMix(rows)}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="card span-6">
+                <div class="text-muted" style="font-size:12px; text-transform:uppercase; letter-spacing:.06em; font-weight:600">Classes mentioned</div>
+                <div style="font-size:13px; color:var(--text); margin-top:6px; line-height:1.7">${classMix(rows)}</div>
             </div>`;
     }
 
@@ -194,6 +213,7 @@ export async function render(root, { profile, supabase }) {
             if (kind === 'sat')  display = val != null ? `<span class="chip ${SAT_CHIP[val]}">${SAT_LABEL[val] || val}</span>` : '<span class="text-muted">—</span>';
             else if (kind === 'pace') display = val ? `<span class="chip">${PACE_LABEL[val] || val}</span>` : '<span class="text-muted">—</span>';
             else if (kind === 'ynm')  display = val ? `<span class="chip">${YNM_LABEL[val] || val}</span>` : '<span class="text-muted">—</span>';
+            else if (kind === 'int')  display = val != null ? `<strong>${val}</strong>` : '<span class="text-muted">—</span>';
             else /* text */ display = val ? `<div style="white-space:pre-wrap">${escape(val)}</div>` : '<span class="text-muted">—</span>';
 
             (sections[section] ||= []).push({ label, display });
@@ -247,6 +267,7 @@ export async function render(root, { profile, supabase }) {
                 if (kind === 'sat')  return `${v} (${SAT_LABEL[v] || ''})`;
                 if (kind === 'pace') return PACE_LABEL[v] || v;
                 if (kind === 'ynm')  return YNM_LABEL[v] || v;
+                if (kind === 'int')  return String(v);
                 return String(v).replace(/\r?\n/g, ' ');
             })
         ];
@@ -307,4 +328,25 @@ function tally(rows, key) {
 }
 function escape(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+function totalChildren(rows) {
+    return rows.reduce((s, r) => s + (Number(r.children_count) || 0), 0);
+}
+function familyMix(rows) {
+    const c = tally(rows, 'children_count');
+    const parts = Object.entries(c)
+        .sort((a, b) => Number(a[0]) - Number(b[0]))
+        .map(([k, v]) => `<strong>${v}</strong> family${v === 1 ? '' : 's'} with ${k} child${Number(k) === 1 ? '' : 'ren'}`);
+    return parts.join(' · ') || '<span class="text-muted">— not answered</span>';
+}
+function classMix(rows) {
+    const mentions = {};
+    for (const r of rows) {
+        const raw = (r.class_names || '').split(',').map(s => s.trim()).filter(Boolean);
+        for (const c of raw) mentions[c] = (mentions[c] || 0) + 1;
+    }
+    const entries = Object.entries(mentions).sort((a, b) => b[1] - a[1]);
+    if (!entries.length) return '<span class="text-muted">— none captured</span>';
+    return entries.map(([c, n]) => `<span class="chip" style="margin-right:4px">${escape(c)} · ${n}</span>`).join(' ');
 }
