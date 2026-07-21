@@ -14,6 +14,89 @@
 <body>
     <div id="site-nav"></div>
 
+    <!-- Parents' Evening feedback banner — auto-hides after FEEDBACK_HIDE_ON date (see script at bottom) -->
+    <div id="feedback-banner" style="display:none">
+        <style>
+            #feedback-banner .fb-strip {
+                background: linear-gradient(90deg, #056656 0%, #085041 55%, #7A5A0A 100%);
+                color: #fff;
+                padding: 14px 20px;
+                text-align: center;
+                font-size: 15px;
+                border-bottom: 2px solid #D4AF37;
+                position: relative;
+            }
+            #feedback-banner .fb-strip a.fb-cta {
+                display: inline-flex; align-items: center; gap: 8px;
+                background: #D4AF37; color: #04503F;
+                padding: 7px 16px; border-radius: 999px;
+                text-decoration: none; font-weight: 700;
+                margin-left: 12px;
+                transition: transform .12s ease, box-shadow .12s ease;
+            }
+            #feedback-banner .fb-strip a.fb-cta:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 6px 18px -4px rgba(212,175,55,.55);
+            }
+            #feedback-banner .fb-strip .fb-close {
+                position: absolute; right: 12px; top: 50%;
+                transform: translateY(-50%);
+                background: transparent; border: 0;
+                color: rgba(255,255,255,.75); font-size: 20px;
+                cursor: pointer; padding: 4px 10px;
+                line-height: 1;
+            }
+            #feedback-banner .fb-strip .fb-close:hover { color: #fff; }
+            #feedback-banner .fb-strip .fb-star { color: #D4AF37; font-size: 18px; vertical-align: -1px; }
+
+            /* Hero-level big card — sits inside the hero CTA row */
+            .fb-hero-card {
+                margin-top: 22px;
+                padding: 18px 22px;
+                border: 2px solid #D4AF37;
+                border-radius: 14px;
+                background: linear-gradient(135deg, rgba(212,175,55,.10), rgba(5,102,86,.06));
+                display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+            }
+            .fb-hero-card .fb-hero-icon {
+                width: 44px; height: 44px; border-radius: 12px;
+                background: #D4AF37; color: #04503F;
+                display: grid; place-items: center;
+                font-size: 22px; font-weight: 700;
+                flex-shrink: 0;
+            }
+            .fb-hero-card .fb-hero-copy { flex: 1; min-width: 220px; }
+            .fb-hero-card .fb-hero-title {
+                font-weight: 700; color: var(--green-800); font-size: 16px; margin-bottom: 2px;
+            }
+            .fb-hero-card .fb-hero-sub {
+                font-size: 13px; color: var(--muted); line-height: 1.5;
+            }
+            .fb-hero-card .fb-hero-btn {
+                display: inline-flex; align-items: center; gap: 8px;
+                background: var(--green-700); color: #fff;
+                padding: 10px 22px; border-radius: 999px;
+                text-decoration: none; font-weight: 600; font-size: 14px;
+                transition: transform .12s ease, box-shadow .12s ease;
+            }
+            .fb-hero-card .fb-hero-btn:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 8px 20px -6px rgba(5,102,86,.4);
+            }
+            @media (max-width: 640px) {
+                #feedback-banner .fb-strip { font-size: 13px; padding: 12px 44px 12px 16px; }
+                #feedback-banner .fb-strip a.fb-cta { display: block; margin: 10px auto 0; width: max-content; }
+            }
+        </style>
+        <div class="fb-strip">
+            <span class="fb-star">☪</span>
+            <strong>Parents' Evening Feedback is open</strong> —
+            your anonymous 2-minute reflection helps us plan next year.
+            <a class="fb-cta" href="feedback.html">Share feedback →</a>
+            <button class="fb-close" id="feedback-banner-close" aria-label="Dismiss for this visit">×</button>
+        </div>
+    </div>
+
     <!-- Hero -->
     <section class="hero">
         <div class="container hero-inner">
@@ -28,6 +111,16 @@
                     <a href="admissions.html" class="btn btn-primary btn-lg">Apply for admission</a>
                     <a href="about.html" class="btn btn-lg">Learn more</a>
                 </div>
+
+                <!-- Feedback promo card inside the hero, mirrors auto-hide of the banner -->
+                <div class="fb-hero-card" id="feedback-hero-card" style="display:none">
+                    <div class="fb-hero-icon">☪</div>
+                    <div class="fb-hero-copy">
+                        <div class="fb-hero-title">Share your Parents' Evening feedback</div>
+                        <div class="fb-hero-sub">Anonymous · takes 2 minutes · helps us plan next year</div>
+                    </div>
+                    <a href="feedback.html" class="fb-hero-btn">Open feedback form →</a>
+                </div>
             </div>
             <div class="hero-art">
                 <div class="hero-art-content">
@@ -37,6 +130,29 @@
             </div>
         </div>
     </section>
+
+    <script>
+        // Feedback banner + hero card auto-hide.
+        // Shows until end-of-day on FEEDBACK_HIDE_ON (site local time).
+        // Change the date to extend / cut short — no other code changes needed.
+        (function(){
+            var FEEDBACK_HIDE_ON = '2026-07-14';  // yyyy-mm-dd — hides FROM this date onward (feedback season closed)
+            var today = new Date().toISOString().slice(0,10);
+            if (today < FEEDBACK_HIDE_ON) {
+                var banner = document.getElementById('feedback-banner');
+                var card   = document.getElementById('feedback-hero-card');
+                // Respect a session-level dismiss so users who click × aren't nagged on every page load
+                var dismissed = sessionStorage.getItem('fb-banner-dismissed') === '1';
+                if (banner && !dismissed) banner.style.display = '';
+                if (card)                 card.style.display   = '';
+                var closer = document.getElementById('feedback-banner-close');
+                if (closer) closer.addEventListener('click', function(){
+                    if (banner) banner.style.display = 'none';
+                    sessionStorage.setItem('fb-banner-dismissed', '1');
+                });
+            }
+        })();
+    </script>
 
     <!-- Stats bar -->
     <div class="stat-bar">
